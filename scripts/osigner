@@ -46,6 +46,9 @@ __builtin__.use_local_modules = is_local or is_android
 if __builtin__.use_local_modules:
     import imp
     imp.load_module('electrum', *imp.find_module('../lib'))
+    imp.load_module('electrum_gui', *imp.find_module('../gui'))
+    imp.load_module('scripts_gui', *imp.find_module('gui'))
+
 
 from electrum import *
 
@@ -58,6 +61,7 @@ After signing, each unsigned file is moved into an archive subdirectory.
     parser = optparse.OptionParser(prog=usage)
     parser.add_option("-w", "--wallet", dest="wallet_path", help="wallet path (default: electrum.dat)")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False, help="show debugging information")
+    parser.add_option("-g", "--gui", dest="gui", help="User interface: qt, lite, gtk or text")
     return parser
 
 def print_outputs(outs, wallet):
@@ -67,6 +71,98 @@ def print_outputs(outs, wallet):
             print "    CHANGE:%s -> %s"%(util.format_satoshis(amount, False), address)
         else:
             print "    OUT   :%s -> %s"%(util.format_satoshis(amount, False), address)
+
+class TxScanner:
+    def __init__(self, dirs):
+        self.dirs = dirs
+        self.scan()
+
+    def compute_paths(self, tx_file):
+        archive_dir = path.join(path.dirname(tx_file), 'archive')
+        (base, ignore) = path.splitext(tx_file)
+        signed_file = base + '.stxn'
+        partial_file = base + '-part.txn'
+        archived_file = path.join(archive_dir, path.basename(tx_file))
+        archived_signed_file = path.join(archive_dir, path.basename(signed_file))
+        return (signed_file, partial_file, archived_file, archived_signed_file)
+
+    def result_file(self, tx, is_complete):
+        (signed_file, partial_file, archived_file, archived_signed_file) = self.compute_paths(tx['file'])
+        return signed_file if is_complete else partial_file
+
+    def archived_file(self, tx, is_complete):
+        (signed_file, partial_file, archived_file, archived_signed_file) = self.compute_paths(tx['file'])
+        return archived_file
+
+    def scan(self):
+        tx_files = []
+        for tx_dir in self.dirs:
+            tx_files = tx_files + glob(path.join(tx_dir, '*.txn'))
+            tx_files = tx_files + glob(path.join(tx_dir, '*.stxn'))
+            tx_files = tx_files + glob(path.join(tx_dir, 'archive', '*.txn'))
+            tx_files = tx_files + glob(path.join(tx_dir, 'archive', '*.stxn'))
+            archive_dir = path.join(tx_dir, 'archive')
+            if not path.isdir(archive_dir):
+                os.mkdir(archive_dir)
+
+        tx_files.sort()
+
+        txs = []
+        for tx_file in tx_files:
+            (signed_file, partial_file, archived_file, archived_signed_file) = self.compute_paths(tx_file)
+            tx = json.load(open(tx_file, "rb"))
+            if tx_file != signed_file and path.isfile(signed_file):
+                print "%s already exists!"%(signed_file)
+                sys.exit(1)
+            if path.isfile(archived_file):
+                print "Archived unsigned file %s already exists!"%(archived_file)
+                sys.exit(1)
+            if path.isfile(archived_signed_file):
+                print "Archived signed file %s already exists!"%(archived_signed_file)
+                sys.exit(1)
+
+            tx['file'] = tx_file
+            tx['created'] = path.getmtime(tx_file)
+            tx['archived'] = tx_file.startswith(archive_dir)
+            txs.append(tx)
+        self.txs = txs
+    def sign(self, unsigned_tx):
+        raw_tx = unsigned_tx['hex']
+        input_info = json.loads(unsigned_tx['input_info'])
+        tx = Transaction(raw_tx)
+        addresses = map( lambda o: o[0], tx.outputs )
+        #wallet.synchronize_offline(addresses)
+
+        print_outputs(tx.outputs, wallet)
+        import pdb; pdb.set_trace();
+        wallet.signrawtransaction(tx, input_info, [], None)
+        out_file = scanner.result_file(unsigned_tx, tx.is_complete)
+        archived_file = self.archived_file(unsigned_tx, tx.is_complete)
+        f = open(out_file, "wb")
+        f.write(json.dumps(tx.as_dict()))
+        f.write("\n")
+        f.close()
+        print "Created %s"%(out_file)
+        os.rename(unsigned_tx['file'], archived_file)
+        print
+
+def cli(scanner, options):
+    for unsigned_tx in scanner.txs:
+        if unsigned_tx['complete'] or unsigned_tx['archived']:
+            continue
+        print unsigned_tx['file'] + ":"
+        raw_tx = unsigned_tx['hex']
+        input_info = json.loads(unsigned_tx['input_info'])
+        tx = Transaction(raw_tx)
+        addresses = map( lambda o: o[0], tx.outputs )
+        #wallet.synchronize_offline(addresses)
+
+        print_outputs(tx.outputs, wallet)
+        out_file = scanner.result_file(unsigned_tx, tx.is_complete)
+        archived_file = scanner.archived_file(unsigned_tx, tx.is_complete)
+        if not raw_input('Sign this transaction? ').startswith('y'):
+            sys.exit(0)
+        scanner.sign(unsigned_tx)
 
 if __name__ == '__main__':
 
@@ -89,50 +185,20 @@ if __name__ == '__main__':
         print_msg("Error: Wallet file not found.")
         sys.exit(1)
 
-    tx_files = []
-    for tx_dir in args:
-        tx_files = tx_files + glob(path.join(tx_dir, '*.txn'))
-        archive_dir = path.join(tx_dir, 'archive')
-        if not path.isdir(archive_dir):
-            os.mkdir(archive_dir)
-
-    tx_files.sort()
-
-    for tx_file in tx_files:
-        print tx_file + ":"
-        archive_dir = path.join(path.dirname(tx_file), 'archive')
-        (base, ignore) = path.splitext(tx_file)
-        signed_file = base + '.stxn'
-        partial_file = base + '-part.txn'
-        archived_file = path.join(archive_dir, path.basename(tx_file))
-        archived_signed_file = path.join(archive_dir, path.basename(signed_file))
-
-        if path.isfile(signed_file):
-            print "%s already exists!"%(signed_file)
-            sys.exit(1)
-        if path.isfile(archived_file):
-            print "Archived unsigned file %s already exists!"%(archived_file)
-            sys.exit(1)
-        if path.isfile(archived_signed_file):
-            print "Archived signed file %s already exists!"%(archived_signed_file)
-            sys.exit(1)
-
-        unsigned_tx = json.load(open(tx_file, "rb"))
-        raw_tx = unsigned_tx['hex']
-        input_info = json.loads(unsigned_tx['input_info'])
-        tx = Transaction(raw_tx)
-        addresses = map( lambda o: o[0], tx.outputs )
-        wallet.synchronize_offline(addresses)
-
-        print_outputs(tx.outputs, wallet)
-        if not raw_input('Sign this transaction? ').startswith('y'):
-            sys.exit(0)
-        wallet.signrawtransaction(tx, input_info, [], None)
-        out_file = signed_file if tx.is_complete else partial_file
-        f = open(out_file, "wb")
-        f.write(json.dumps(tx.as_dict()))
-        f.write("\n")
-        f.close()
-        print "Created %s"%(out_file)
-        os.rename(tx_file, archived_file)
-        print
+    scanner = TxScanner(args)
+    gui_name = config.get('gui')
+    if gui_name is None:
+        cli(scanner, options)
+    else:
+        try:
+            #import pdb; pdb.set_trace();
+            gui = __import__('scripts_gui.osigner_' + gui_name, fromlist=['scripts_gui'])
+        except ImportError:
+            sys.exit("Error: Unknown GUI: " + gui_name )
+        
+        interface = Interface(config, True)
+        verifier = WalletVerifier(interface, config)
+        verifier.start()
+        wallet.set_verifier(verifier)
+        gui = gui.OsignerGui(wallet, config, scanner)
+        gui.main()
