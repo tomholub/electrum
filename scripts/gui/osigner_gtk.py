@@ -120,9 +120,12 @@ class OsignerWindow:
                 tx_details = self.txn_list.get_value( self.txn_list.get_iter(c), 7)
                 #self.show_message(tx_details)
                 index = len(self.scanner.txs) - 1 - c[0]
-                self.scanner.sign(self.scanner.txs[index])
-                self.scanner.scan()
-                self.update_txn_tab()
+                result = self.scanner.sign(self.scanner.txs[index])
+                if result:
+                    self.scanner.scan()
+                    self.update_txn_tab()
+                else:
+                    self.show_message("Already signed, or cannot sign")
             
 
     def treeview_key_press(self, treeview, event):

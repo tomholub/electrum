@@ -590,6 +590,7 @@ class Transaction:
     def sign(self, private_keys):
         import deserialize
 
+        signed = False
         for i in range(len(self.inputs)):
             txin = self.inputs[i]
             tx_for_sig = self.serialize( self.inputs, self.outputs, for_sig = i )
@@ -613,7 +614,9 @@ class Transaction:
 
                 # list of already existing signatures
                 signatures = txin.get("signatures",[])
+                signers = txin.get("signers",[])
                 print_error("signatures",signatures)
+                print_error("signers",signers)
 
                 for pubkey in redeem_pubkeys:
 
@@ -629,6 +632,9 @@ class Transaction:
                     if 1:
                         # check if we have a key corresponding to the redeem script
                         if pubkey in keypairs.keys():
+                            if pubkey in signers:
+                                print_error("skipping already used pubkey", pubkey)
+                                continue
                             # add signature
                             sec = keypairs[pubkey]
                             compressed = is_compressed(sec)
@@ -639,10 +645,14 @@ class Transaction:
                             sig = private_key.sign_digest( Hash( tx_for_sig.decode('hex') ), sigencode = ecdsa.util.sigencode_der )
                             assert public_key.verify_digest( sig, Hash( tx_for_sig.decode('hex') ), sigdecode = ecdsa.util.sigdecode_der)
                             signatures.append( sig.encode('hex') )
+                            signers.append( pubkey )
+                            signed = True
                         
                 # for p2sh, pubkeysig is a tuple (may be incomplete)
                 self.inputs[i]["signatures"] = signatures
+                self.inputs[i]["signers"] = signers
                 print_error("signatures",signatures)
+                print_error("signers",signers)
                 self.is_complete = len(signatures) == num
 
             else:
@@ -659,8 +669,10 @@ class Transaction:
 
                 self.inputs[i]["pubkeysig"] = [(pubkey, sig)]
                 self.is_complete = True
+                signed = True
 
         self.raw = self.serialize( self.inputs, self.outputs )
+        return signed
 
 
     def deserialize(self):
@@ -751,6 +763,7 @@ class Transaction:
                       'KeyID':i.get('KeyID'),
                       'redeemScript':i.get('redeemScript'),
                       'signatures':i.get('signatures'),
+                      'signers':i.get('signers'),
                       'pubkeys':i.get('pubkeys'),
                       }
                 extras.append(e)

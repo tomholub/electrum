@@ -135,7 +135,9 @@ class TxScanner:
 
         print_outputs(tx.outputs, wallet)
         import pdb; pdb.set_trace();
-        wallet.signrawtransaction(tx, input_info, [], None)
+        signed = wallet.signrawtransaction(tx, input_info, [], None)
+        if not signed:
+            return False
         out_file = scanner.result_file(unsigned_tx, tx.is_complete)
         archived_file = self.archived_file(unsigned_tx, tx.is_complete)
         f = open(out_file, "wb")
@@ -145,6 +147,7 @@ class TxScanner:
         print "Created %s"%(out_file)
         os.rename(unsigned_tx['file'], archived_file)
         print
+        return True
 
 def cli(scanner, options):
     for unsigned_tx in scanner.txs:

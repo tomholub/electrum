@@ -377,6 +377,7 @@ class Wallet:
                 if item.get('txid') == txin['tx_hash'] and item.get('vout') == txin['index']:
                     txin['raw_output_script'] = item['scriptPubKey']
                     txin['redeemScript'] = item.get('redeemScript')
+                    txin['signers'] = item.get('signers', [])
                     txin['KeyID'] = item.get('KeyID')
                     break
             else:
@@ -409,7 +410,7 @@ class Wallet:
                     private_keys[addr] = sec
                     txin['address'] = addr
 
-        tx.sign( private_keys )
+        return tx.sign( private_keys )
 
     def sign_message(self, address, message, password):
         sec = self.get_private_key(address, password)
