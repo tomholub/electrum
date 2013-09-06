@@ -80,7 +80,8 @@ class TxScanner:
     def compute_paths(self, tx_file):
         archive_dir = path.join(path.dirname(tx_file), 'archive')
         (base, ignore) = path.splitext(tx_file)
-        signed_file = base + '.stxn'
+        bare_base = re.sub('-part$', '', base)
+        signed_file = bare_base + '.stxn'
         partial_file = base + '-part.txn'
         archived_file = path.join(archive_dir, path.basename(tx_file))
         archived_signed_file = path.join(archive_dir, path.basename(signed_file))
@@ -111,19 +112,22 @@ class TxScanner:
         for tx_file in tx_files:
             (signed_file, partial_file, archived_file, archived_signed_file) = self.compute_paths(tx_file)
             tx = json.load(open(tx_file, "rb"))
-            if tx_file != signed_file and path.isfile(signed_file):
-                print "%s already exists!"%(signed_file)
-                sys.exit(1)
-            if path.isfile(archived_file):
-                print "Archived unsigned file %s already exists!"%(archived_file)
-                sys.exit(1)
-            if path.isfile(archived_signed_file):
-                print "Archived signed file %s already exists!"%(archived_signed_file)
-                sys.exit(1)
+            if path.commonprefix([tx_file, archive_dir]) != archive_dir:
+                if path.isfile(signed_file) and signed_file != tx_file:
+                    print "%s already exists (for %s)!"%(signed_file, tx_file)
+                    sys.exit(1)
+                if path.isfile(archived_file):
+                    print "Archived unsigned file %s already exists!"%(archived_file)
+                    sys.exit(1)
+                if path.isfile(archived_signed_file):
+                    print "Archived signed file %s already exists!"%(archived_signed_file)
+                    sys.exit(1)
+                tx['archived'] = False
+            else:
+                tx['archived'] = True
 
             tx['file'] = tx_file
             tx['created'] = path.getmtime(tx_file)
-            tx['archived'] = tx_file.startswith(archive_dir)
             txs.append(tx)
         self.txs = txs
     def sign(self, unsigned_tx):
@@ -134,7 +138,6 @@ class TxScanner:
         #wallet.synchronize_offline(addresses)
 
         print_outputs(tx.outputs, wallet)
-        import pdb; pdb.set_trace();
         signed = wallet.signrawtransaction(tx, input_info, [], None)
         if not signed:
             return False
@@ -194,7 +197,6 @@ if __name__ == '__main__':
         cli(scanner, options)
     else:
         try:
-            #import pdb; pdb.set_trace();
             gui = __import__('scripts_gui.osigner_' + gui_name, fromlist=['scripts_gui'])
         except ImportError:
             sys.exit("Error: Unknown GUI: " + gui_name )
