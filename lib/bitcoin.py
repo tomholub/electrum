@@ -464,6 +464,7 @@ class Transaction:
         self.outputs = self.d['outputs']
         self.outputs = map(lambda x: (x['address'],x['value']), self.outputs)
         self.input_info = None
+        self.output_info = None
         self.is_complete = True
         
     @classmethod
@@ -478,6 +479,7 @@ class Transaction:
             e = { 'txid':i['tx_hash'], 'vout':i['index'], 'scriptPubKey':i.get('raw_output_script') }
             extras.append(e)
         self.input_info = extras
+        self.output_info = None
         return self
 
     def __str__(self):
@@ -763,7 +765,7 @@ class Transaction:
                       'KeyID':i.get('KeyID'),
                       'redeemScript':i.get('redeemScript'),
                       'signatures':i.get('signatures'),
-                      'signers':i.get('signers'),
+                      'signers':i.get('signers', []),
                       'pubkeys':i.get('pubkeys'),
                       }
                 extras.append(e)
@@ -771,6 +773,7 @@ class Transaction:
 
             if self.input_info:
                 out['input_info'] = json.dumps(self.input_info).replace(' ','')
+            out['output_info'] = json.dumps(self.output_info).replace(' ','')
 
         return out
 

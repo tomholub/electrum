@@ -17,7 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
-import thread, time, ast, sys, re
+import thread, time, ast, sys, re, json
 import socket, traceback
 import pygtk
 pygtk.require('2.0')
@@ -236,6 +236,9 @@ class OsignerWindow:
             time_str = datetime.datetime.fromtimestamp(unsigned_tx['created']).isoformat(' ')[:-3]
             tx_hash = 'pending'
             raw_tx = unsigned_tx['hex']
+            output_info = None
+            if 'output_info' in unsigned_tx:
+                output_info = json.loads(unsigned_tx['output_info'])
             tx = Transaction(raw_tx)
             conf_icon = None
             if not unsigned_tx['archived']:
@@ -245,13 +248,12 @@ class OsignerWindow:
             value = 0
             all_addresses = map( lambda o: o[0], tx.outputs )
             tooltip = ""
-            for out in tx.outputs:
+            classes = self.scanner.classify_outputs(tx.outputs, self.wallet, output_info)
+            for idx, out in enumerate(tx.outputs):
                 address, amount = out
                 famount = format_satoshis(amount,True,self.wallet.num_zeros, whitespaces=True)
-                if self.wallet.is_mine(address):
-                    tooltip = tooltip + "%s CHANGE %s\n"%(address, famount)
-                else:
-                    tooltip = tooltip + "%s OUTPUT %s\n"%(address, famount)
+                tooltip = tooltip + "%s %s %s\n"%(address, classes[idx], famount)
+                if classes and classes[idx] != 'CHANGE':
                     value = value - amount
                     addresses.append(address)
             numsigs = 0

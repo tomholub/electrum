@@ -64,13 +64,12 @@ After signing, each unsigned file is moved into an archive subdirectory.
     parser.add_option("-g", "--gui", dest="gui", help="User interface: qt, lite, gtk or text")
     return parser
 
-def print_outputs(outs, wallet):
-    for out in outs:
+def print_outputs(outs, classes):
+    for idx, out in enumerate(outs):
+        classification = classes[idx]
         address, amount = out
-        if wallet.is_mine(address):
-            print "    CHANGE:%s -> %s"%(util.format_satoshis(amount, False), address)
-        else:
-            print "    OUT   :%s -> %s"%(util.format_satoshis(amount, False), address)
+        output_info = outs[idx]
+        print "    %s:%s -> %s"%(classification, util.format_satoshis(amount, False), address)
 
 class TxScanner:
     def __init__(self, dirs):
@@ -94,6 +93,21 @@ class TxScanner:
     def archived_file(self, tx, is_complete):
         (signed_file, partial_file, archived_file, archived_signed_file) = self.compute_paths(tx['file'])
         return archived_file
+
+    def classify_outputs(self, outs, wallet, output_infos):
+        types = []
+        for idx, out in enumerate(outs):
+            address, amount = out
+            if output_infos and output_infos[idx]:
+                print output_infos[idx]
+                account, type, seq = output_infos[idx]
+                if address == wallet.accounts[account].get_address(*seq):
+                    types.append('CHANGE')
+                else:
+                    types.append('INVALID')
+            else:
+                types.append('OUTPUT')
+        return types
 
     def scan(self):
         tx_files = []
@@ -134,10 +148,11 @@ class TxScanner:
         raw_tx = unsigned_tx['hex']
         input_info = json.loads(unsigned_tx['input_info'])
         tx = Transaction(raw_tx)
+        tx.output_info = json.loads(unsigned_tx['output_info'])
         addresses = map( lambda o: o[0], tx.outputs )
         #wallet.synchronize_offline(addresses)
 
-        print_outputs(tx.outputs, wallet)
+        print_outputs(tx.outputs, self.classify_outputs(tx.outputs, wallet, tx.output_info))
         signed = wallet.signrawtransaction(tx, input_info, [], None)
         if not signed:
             return False
@@ -158,12 +173,12 @@ def cli(scanner, options):
             continue
         print unsigned_tx['file'] + ":"
         raw_tx = unsigned_tx['hex']
-        input_info = json.loads(unsigned_tx['input_info'])
         tx = Transaction(raw_tx)
+        tx.output_info = json.loads(unsigned_tx['output_info'])
         addresses = map( lambda o: o[0], tx.outputs )
         #wallet.synchronize_offline(addresses)
 
-        print_outputs(tx.outputs, wallet)
+        print_outputs(tx.outputs, scanner.classify_outputs(tx.outputs, wallet, tx.output_info))
         out_file = scanner.result_file(unsigned_tx, tx.is_complete)
         archived_file = scanner.archived_file(unsigned_tx, tx.is_complete)
         if not raw_input('Sign this transaction? ').startswith('y'):

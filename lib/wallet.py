@@ -788,6 +788,7 @@ class Wallet:
     def add_tx_change( self, inputs, outputs, amount, fee, total, change_addr=None, account=0 ):
         "add change to a transaction"
         change_amount = total - ( amount + fee )
+        change_id = None
         if change_amount != 0:
             if not change_addr:
                 if account is None: 
@@ -798,12 +799,15 @@ class Wallet:
                 if not self.use_change or account == -1:
                     change_addr = inputs[-1]['address']
                 else:
-                    change_addr = self.accounts[account].get_addresses(1)[-self.gap_limit_for_change]
+                    addresses = self.accounts[account].get_addresses(1)
+                    change_addr = addresses[-self.gap_limit_for_change]
+                    change_id = (account, "BIP32", (1, len(addresses) - self.gap_limit_for_change))
 
             # Insert the change output at a random position in the outputs
             posn = random.randint(0, len(outputs))
             outputs[posn:posn] = [( change_addr,  change_amount)]
-        return outputs
+
+        return outputs, posn, change_id
 
 
     def get_history(self, address):
@@ -953,9 +957,11 @@ class Wallet:
         if not inputs:
             raise ValueError("Not enough funds")
 
-        outputs = self.add_tx_change(inputs, outputs, amount, fee, total, change_addr, account)
+        outputs, change_pos, change_id = self.add_tx_change(inputs, outputs, amount, fee, total, change_addr, account)
 
         tx = Transaction.from_io(inputs, outputs)
+        tx.output_info = map(lambda x:None, outputs)
+        tx.output_info[change_pos] = change_id
 
         pk_addresses = []
         for i in range(len(tx.inputs)):
