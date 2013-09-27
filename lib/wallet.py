@@ -566,6 +566,13 @@ class Wallet:
             self.config.set_key('addr_history', self.history, True)
         return new
 
+    def create_new_address(self, account, for_change = 0):
+        """ Force creation of a new address - for deposit detection - merchants """
+        address = account.create_new_address(for_change)
+        self.history[address] = []
+        self.save_accounts()
+        self.config.set_key('addr_history', self.history, True)
+        return address
 
     def is_found(self):
         return self.history.values() != [[]] * len(self.history) 
@@ -888,7 +895,8 @@ class Wallet:
                     balance += value
 
                 conf, timestamp = self.verifier.get_confirmations(tx_hash) if self.verifier else (None, None)
-                result.append( (tx_hash, conf, is_mine, value, fee, balance, timestamp) )
+                label, is_default = self.get_label(tx_hash)
+                result.append( (tx_hash, conf, label, is_mine, value, fee, balance, timestamp) )
 
         return result
 
