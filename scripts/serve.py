@@ -69,8 +69,9 @@ def do_stop():
 
 def process_history(length = 1000):
     print "process_history", length
-    out = wallet.get_tx_history()[-length:]
-    return out
+    history = wallet.get_tx_history()[-length:]
+    txs = map(lambda t: {'txid': t[0], 'confirmations': t[1], 'address': t[2], 'is_mine': t[3], 'amount': t[4], 'fee': t[5], 'balance': t[6], 'blocktime': t[7]}, history)
+    return txs
 
 def new_address(label = None, account_name = "m/0'/0'"):
     print "new_address", label
