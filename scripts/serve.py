@@ -30,7 +30,7 @@ if __builtin__.use_local_modules:
     import imp
     imp.load_module('electrum', *imp.find_module('../lib'))
 
-from electrum import Wallet, Interface, WalletVerifier, SimpleConfig, WalletSynchronizer, util
+from electrum import *
 import ConfigParser
 
 def arg_parser():
@@ -38,7 +38,8 @@ def arg_parser():
 A general purpose merchant daemon.  Commands:
     history [LENGTH=1000] - dump last LENGTH transactions
     new-address [LABEL] - allocates a new address, with an optional label
-    validate-address [ADDRESS] - validates an address by signing a message and verifying
+    validate-own-address [ADDRESS] - validates my own address by signing a message and verifying
+    validate-address [ADDRESS] - validates an address
     stop - stops the server
 """ 
     parser = optparse.OptionParser(prog=usage)
@@ -53,6 +54,7 @@ electrum_server = config.get('electrum','server')
 
 my_host = config.get('main','host')
 my_port = config.getint('main','port')
+my_key = config.get('main','key')
 
 def on_wallet_update():
     print "updated_callback"
@@ -70,8 +72,20 @@ def do_stop():
 def process_history(length = 1000):
     print "process_history", length
     history = wallet.get_tx_history()[-length:]
-    txs = map(lambda t: {'txid': t[0], 'confirmations': t[1], 'address': t[2], 'is_mine': t[3], 'amount': t[4], 'fee': t[5], 'balance': t[6], 'blocktime': t[7]}, history)
+    txs = map(lambda t: {'txid': t[0], 'confirmations': t[1], 'address': t[2], 'is_send': t[3], 'amount': t[4], 'fee': t[5], 'balance': t[6], 'blocktime': t[7]}, history)
     return txs
+
+def payto(key, address, amount):
+    print "payto", address, amount
+    amount = int(amount)
+    if key != my_key:
+        raise BaseException, "wrong key"
+    tx = wallet.mktx( [(address, amount)], None, None, None, None)
+    r, h = wallet.sendtx( tx )
+    if r:
+        return h
+    else:
+        raise BaseException, h
 
 def new_address(label = None, account_name = "m/0'/0'"):
     print "new_address", label
@@ -79,11 +93,15 @@ def new_address(label = None, account_name = "m/0'/0'"):
     address = wallet.create_new_address(account)
     if label:
         wallet.add_contact(address, label)
+    synchronizer.subscribe_to_addresses([address])
     return address
 
-def validate_address(address):
+def validate_own_address(address):
     sig = wallet.sign_message(address, address, None)
     return wallet.verify_message(address, sig, address)
+
+def validate_address(address):
+    return is_valid(address)
 
 def server_thread(context):
     from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
@@ -92,6 +110,8 @@ def server_thread(context):
     server.register_function(process_history, 'history')
     server.register_function(new_address, 'new_address')
     server.register_function(validate_address, 'validate_address')
+    server.register_function(validate_own_address, 'validate_own_address')
+    server.register_function(payto, 'payto')
     server.register_function(do_stop, 'stop')
     server.serve_forever()
     
@@ -106,10 +126,14 @@ def handle_command(cmd, args):
             if len(args) > 0:
                 args[0] = int(args[0])
             out = server.history(*args)
+        elif cmd == 'payto':
+            out = server.payto(*args)
         elif cmd == 'new-address':
             out = server.new_address(*args)
         elif cmd == 'validate-address':
             out = server.validate_address(*args)
+        elif cmd == 'validate-own-address':
+            out = server.validate_own_address(*args)
         else:
             out = "unknown command"
     except socket.error:
