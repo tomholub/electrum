@@ -511,6 +511,8 @@ class Wallet:
                 self.accounts[k] = OldAccount(v)
             elif '&' in k:
                 self.accounts[k] = BIP32_Account_2of2(v)
+            elif k.startswith("oracle &"):
+                self.accounts[k] = cryptocorp.Oracle_Account(v)
             else:
                 self.accounts[k] = BIP32_Account(v)
 
@@ -597,7 +599,8 @@ class Wallet:
         for a in account.split('&'):
             s = a.strip()
             m = re.match("(m/\d+'/)(\d+)", s)
-            roots.append( m.group(1) )
+            if m:
+                roots.append( m.group(1) )
         return roots
 
     def is_seeded(self, account):
@@ -1513,6 +1516,28 @@ class Wallet:
         self.fill_addressbook()
 
 
+
+    def create_oracle_account(self, oracle, backup, name = None):
+        import cryptocorp
+        keys = self.accounts.keys()
+        account_id = None
+        i = 0
+        while True:
+            account_id = "oracle & backup & m/0'/%d"%(i)
+            if account_id not in keys: break
+            i += 1
+
+        master_c0, master_K0, master_cK0 = self.master_public_keys["m/0'/"]
+        print "m="
+        print cryptocorp.SerializeExtendedPublicKey(2, "00000000".decode('hex'), 0, master_c0.decode('hex'), master_cK0.decode('hex'))
+        c0, K0, cK0 = bip32_public_derivation(master_c0.decode('hex'), master_K0.decode('hex'), "m/0'/", "m/0'/%d"%i)
+        account = cryptocorp.Oracle_Account({ 'c':c0, 'K':K0, 'cK':cK0, 'oracle': oracle, 'backup': backup})
+        self.accounts[account_id] = account
+        self.save_accounts()
+        if name:
+            self.set_label(account_id, name)
+        else:
+            self.set_label(account_id, "Oracle %d"%(i))
 
 
 class WalletSynchronizer(threading.Thread):
