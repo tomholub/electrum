@@ -1,9 +1,22 @@
+import httplib2 as http
+import json
+
+try:
+        from urlparse import urlparse
+except ImportError:
+        from urllib.parse import urlparse
+
 import struct
 import bitcoin
 import ecdsa
 import account
 from ecdsa.curves import SECP256k1
 from wallet import Wallet
+
+headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8'
+        }
 
 PRIVATE_TEST_VERSION = [
     ( True, False, "0488ADE4"),
@@ -52,7 +65,14 @@ class Oracle_Account(account.BIP32_Account_2of3):
     def __init__(self, v):
         self.oracle = v['oracle']
         self.backup = v['backup']
-        oracle = DeserializeExtendedKey(v['oracle'])
+        h = http.Http()
+        res, content = h.request(self.oracle, 'GET', None, headers)
+        if res.status != 200:
+            raise Exception("Error %d from Oracle"%(res.status))
+        response = json.loads(content)
+        if response['result'] != 'success':
+            raise Exception("Result %s from Oracle"%(response['result']))
+        oracle = DeserializeExtendedKey(response['keys']['default'][0])
         backup = DeserializeExtendedKey(v['backup'])
         v['c2'] = backup['chain_code'].encode('hex')
         v['K2'] = backup['K'].encode('hex')
