@@ -209,12 +209,12 @@ class BIP32_Account_2of3(BIP32_Account_2of2):
             K, K_compressed, chain = CKD_prime(K, chain, i)
         return K_compressed.encode('hex')
 
-    def get_redeem_script(self, sequence):
+    def redeem_script(self, sequence):
         chain, i = sequence
         pubkey1 = self.get_pubkey(chain, i)
         pubkey2 = self.get_pubkey2(chain, i)
         pubkey3 = self.get_pubkey3(chain, i)
-        return Transaction.multisig_script([pubkey1, pubkey2, pubkey3], 3)
+        return Transaction.multisig_script([pubkey1, pubkey2, pubkey3], 2)
 
     def get_pubkeys(self, sequence):
         return [ self.get_pubkey( *sequence ), self.get_pubkey2( *sequence ), self.get_pubkey3( *sequence )]
