@@ -10,8 +10,12 @@ import struct
 import bitcoin
 import ecdsa
 import account
+import dateutil.tz
+import dateutil.parser
+import datetime
 from ecdsa.curves import SECP256k1
 from wallet import Wallet
+from transaction import Transaction
 
 headers = {
         'Accept': 'application/json',
@@ -61,6 +65,10 @@ def DeserializeExtendedKey(s):
         d['cK'] = bitcoin.GetPubKey(pubkey.pubkey, True)
     return d
 
+class DeferralException(Exception):
+    def __init__(self, message):
+        Exception.__init__(self, message)
+
 class Oracle_Account(account.BIP32_Account_2of3):
     def __init__(self, v):
         self.oracle = v['oracle']
@@ -89,3 +97,49 @@ class Oracle_Account(account.BIP32_Account_2of3):
         d['oracle'] = self.oracle
         d['backup'] = self.backup
         return d
+
+    def sign(self, wallet, tx, input_list):
+        input_txs = []
+        chain_paths = []
+        input_scripts = []
+        for i, inp in enumerate(tx.inputs):
+            if len(input_list) > i and input_list[i]:
+                in_tx = wallet.transactions.get(inp['prevout_hash'])
+                input_scripts.append(inp['redeemScript'])
+                chain_paths.append("%d/%d"%(input_list[i][0], input_list[i][1]))
+                if in_tx:
+                    input_txs.append(in_tx.raw)
+                else:
+                    raise Exception("could not find input transaction %s"%(inp['prevout_hash']))
+            else:
+                input_scripts.append(None)
+                chain_paths.append(None)
+
+        req = {
+                "transaction": {
+                    "bytes": tx.raw,
+                    "inputScripts": input_scripts,
+                    "inputTransactions": input_txs,
+                    "chainPaths": chain_paths,
+                    }
+                }
+        h = http.Http()
+        res, content = h.request(self.oracle + "/transactions", 'POST', json.dumps(req), headers)
+        print content
+        if res.status != 200 and res.status != 400:
+            raise Exception("Error %d from Oracle"%(res.status))
+        response = json.loads(content)
+        if response.has_key('error'):
+            raise Exception("Oracle signature failed: %s" %(response['error']))
+        if response['result'] == 'deferred':
+            if response['deferral']['reason'] == 'delay':
+                tzlocal = dateutil.tz.tzlocal()
+                until = dateutil.parser.parse(response['deferral']['until']).astimezone(tzlocal)
+                remain = int((until - datetime.datetime.now(tzlocal)).total_seconds())
+                raise DeferralException("Oracle deferred transaction, please resubmit at %s (%s seconds from now)"%(until.strftime("%Y-%m-%d %H:%M:%S"), remain))
+            else:
+                raise DeferralException("Oracle deferred transaction, please resubmit after verification")
+        if response['result'] != 'success':
+            raise Exception("Result %s from Oracle"%(response['result']))
+        tx = Transaction(response['transaction']['bytes'], True)
+        return tx

@@ -509,10 +509,11 @@ class Wallet:
             if k == 0:
                 v['mpk'] = self.storage.get('master_public_key')
                 self.accounts[k] = OldAccount(v)
+            elif k.startswith("oracle &"):
+                import cryptocorp
+                self.accounts[k] = cryptocorp.Oracle_Account(v)
             elif '&' in k:
                 self.accounts[k] = BIP32_Account_2of2(v)
-            elif k.startswith("oracle &"):
-                self.accounts[k] = cryptocorp.Oracle_Account(v)
             else:
                 self.accounts[k] = BIP32_Account(v)
 
@@ -618,9 +619,12 @@ class Wallet:
         for a in account.split('&'):
             s = a.strip()
             m = re.match("(m/\d+'/)(\d+)", s)
-            root = m.group(1)
-            num = int(m.group(2))
-            dd.append( (root, [num,c,i] ) )
+            if m:
+                root = m.group(1)
+                num = int(m.group(2))
+                dd.append( (root, [num,c,i] ) )
+            elif s == 'oracle':
+                dd.append( (self.accounts[account], [c,i]) )
         return dd
         
 
@@ -633,6 +637,9 @@ class Wallet:
         rs = self.rebase_sequence(account, sequence)
         dd = []
         for root, public_sequence in rs:
+            if isinstance(root, Account):
+                dd.append( 'oracle' )
+                continue
             c, K, _ = self.master_public_keys[root]
             s = '/' + '/'.join( map(lambda x:str(x), public_sequence) )
             dd.append( 'bip32(%s,%s,%s)'%(c,K, s) )
@@ -669,6 +676,8 @@ class Wallet:
             # assert address == self.accounts[account].get_address(*sequence)
             rs = self.rebase_sequence( account, sequence)
             for root, public_sequence in rs:
+                if isinstance(root, Account):
+                    out.append((root, public_sequence))
 
                 if root not in self.master_private_keys.keys(): continue
                 master_k = self.get_master_private_key(root, password)
@@ -680,12 +689,15 @@ class Wallet:
 
 
     def add_keypairs_from_wallet(self, tx, keypairs, password):
-        for txin in tx.inputs:
+        for i, txin in enumerate(tx.inputs):
             address = txin['address']
             if not self.is_mine(address):
                 continue
             private_keys = self.get_private_key(address, password)
             for sec in private_keys:
+                if isinstance(sec, tuple):
+                    keypairs[sec[0]] = (i, sec[1])
+                    continue
                 pubkey = public_key_from_private_key(sec)
                 keypairs[ pubkey ] = sec
                 if address in self.imported_keys.keys():
@@ -1281,6 +1293,20 @@ class Wallet:
         self.add_keypairs_from_wallet(tx, keypairs, password)
         if keypairs:
             self.sign_transaction(tx, keypairs)
+
+        chain_paths = [None for i in xrange(len(tx.inputs))]
+        signing_account = None
+        if not tx.is_complete:
+            for account in keypairs:
+                if isinstance(account, Account):
+                    if signing_account is None:
+                        signing_account = account
+                    elif signing_account != account:
+                        raise Exception("no handling of multiple oracle accounts in one transaction yet")
+                    input_index, chain_path = keypairs[account]
+                    chain_paths[input_index] = chain_path
+        if signing_account:
+            tx = signing_account.sign(self, tx, chain_paths)
         return tx
 
 
