@@ -93,7 +93,7 @@ class Plugin(BasePlugin):
         dialog.setWindowTitle(_("New Account"))
 
         vbox = QVBoxLayout()
-        vbox.addWidget(QLabel(_('Account name1')+':'))
+        vbox.addWidget(QLabel(_('Account name')+':'))
         e = QLineEdit()
         vbox.addWidget(e)
 
@@ -111,11 +111,11 @@ class Plugin(BasePlugin):
         vbox.addWidget(phone)
 
         vbox.addWidget(QLabel(_('Velocity limit')+':'))
-        velocity_1 = QLineEdit("0.001")
+        velocity_1 = QLineEdit("0.002")
         vbox.addWidget(velocity_1)
 
         vbox.addWidget(QLabel(_('Delay')+':'))
-        delay_2 = QLineEdit()
+        delay_2 = QLineEdit("60")
         vbox.addWidget(delay_2)
 
         vbox.addWidget(QLabel(_('Backup Key (xpub)')+':'))
