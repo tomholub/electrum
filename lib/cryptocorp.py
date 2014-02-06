@@ -17,6 +17,7 @@ from ecdsa.curves import SECP256k1
 from wallet import Wallet
 from transaction import Transaction
 from util import DeferralException
+import uuid
 
 headers = {
         'Accept': 'application/json',
@@ -65,6 +66,32 @@ def DeserializeExtendedKey(s):
         d['K'] = pubkey.to_string()
         d['cK'] = bitcoin.GetPubKey(pubkey.pubkey, True)
     return d
+
+def make_keychain(base_url, my_key, backup_key, parameters, pii):
+    oracle_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "urn:digitaloracle.co:%s"%(my_key)))
+    #TODO proper URL concat
+    oracle_url = base_url + "keychains/" + oracle_id
+    print oracle_url
+    h = http.Http()
+    res, content = h.request(oracle_url, 'GET', None, headers)
+    if res.status == 200:
+        return oracle_url
+    if res.status != 404:
+        print content
+        raise Exception("Error %d from Oracle"%(res.status))
+    body = json.dumps({
+        'rulesetId': 'default',
+        'parameters': parameters,
+        'pii': pii,
+        'keys': [my_key, backup_key],
+        })
+    print body
+    res, content = h.request(oracle_url, 'POST', body, headers)
+    if res.status != 200:
+        print content
+        raise Exception("Error %d from Oracle"%(res.status))
+    print content
+    return oracle_url
 
 class OracleDeferralException(DeferralException):
     def __init__(self, message, account, params):
