@@ -16,6 +16,7 @@ import datetime
 from ecdsa.curves import SECP256k1
 from wallet import Wallet
 from transaction import Transaction
+from util import DeferralException
 
 headers = {
         'Accept': 'application/json',
@@ -65,9 +66,13 @@ def DeserializeExtendedKey(s):
         d['cK'] = bitcoin.GetPubKey(pubkey.pubkey, True)
     return d
 
-class DeferralException(Exception):
-    def __init__(self, message):
+class OracleDeferralException(DeferralException):
+    def __init__(self, message, account, params):
         Exception.__init__(self, message)
+        self.account = account
+        self.params = params
+    def retry(self):
+        return self.account.sign(*self.params)
 
 class Oracle_Account(account.BIP32_Account_2of3):
     def __init__(self, v):
@@ -136,10 +141,17 @@ class Oracle_Account(account.BIP32_Account_2of3):
                 tzlocal = dateutil.tz.tzlocal()
                 until = dateutil.parser.parse(response['deferral']['until']).astimezone(tzlocal)
                 remain = int((until - datetime.datetime.now(tzlocal)).total_seconds())
-                raise DeferralException("Oracle deferred transaction, please resubmit at %s (%s seconds from now)"%(until.strftime("%Y-%m-%d %H:%M:%S"), remain))
+                raise OracleDeferralException("Oracle deferred transaction, please resubmit at %s (%s seconds from now)"%(until.strftime("%Y-%m-%d %H:%M:%S"), remain), self, (wallet, tx, input_list))
             else:
-                raise DeferralException("Oracle deferred transaction, please resubmit after verification")
+                raise OracleDeferralException("Oracle deferred transaction, please resubmit after verification", self, (wallet, tx, input_list))
         if response['result'] != 'success':
             raise Exception("Result %s from Oracle"%(response['result']))
         tx = Transaction(response['transaction']['bytes'], True)
         return tx
+
+def debug_trace():
+  '''Set a tracepoint in the Python debugger that works with Qt'''
+  from PyQt4.QtCore import pyqtRemoveInputHook
+  from pdb import set_trace
+  pyqtRemoveInputHook()
+  set_trace()

@@ -18,7 +18,7 @@
 
 import sys, time, datetime, re, threading
 from electrum.i18n import _, set_language
-from electrum.util import print_error, print_msg
+from electrum.util import print_error, print_msg, DeferralException
 import os.path, json, ast, traceback
 import shutil
 import StringIO
@@ -66,7 +66,6 @@ from electrum import ELECTRUM_VERSION
 import re
 
 from util import *
-
 
 
 
@@ -911,6 +910,20 @@ class ElectrumWindow(QMainWindow):
         try:
             tx = self.wallet.mktx( [(to_address, amount)], password, fee,
                     domain=self.get_payment_sources())
+        except DeferralException as de:
+            while (True):
+                if self.question(str(de)):
+                    try:
+                        tx = de.retry()
+                    except DeferralException as de1:
+                        de = de1
+                    except Exception as e:
+                        traceback.print_exc(file=sys.stdout)
+                        self.show_message(str(e))
+                        return
+                else:
+                    break
+            return
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             self.show_message(str(e))

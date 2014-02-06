@@ -199,3 +199,6 @@ def raw_input(prompt=None):
 import __builtin__
 builtin_raw_input = __builtin__.raw_input
 __builtin__.raw_input = raw_input
+
+class DeferralException(Exception):
+    pass
