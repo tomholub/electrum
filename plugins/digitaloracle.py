@@ -143,7 +143,8 @@ class Plugin(BasePlugin):
                     'period': 60,
                     'limited_keys': [0],
                     },
-                'delay_2': (int(delay_2_text) if delay_2_text != "" else None)
+                'delay_2': (int(delay_2_text) if delay_2_text != "" else None),
+                'call_2': ['phone', 'email']
                 }
         pii = {
                 "phone": phone_text,

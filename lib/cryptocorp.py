@@ -164,7 +164,7 @@ class Oracle_Account(account.BIP32_Account_2of3):
         if response.has_key('error'):
             raise Exception("Oracle signature failed: %s" %(response['error']))
         if response['result'] == 'deferred':
-            if response['deferral']['reason'] == 'delay':
+            if response['deferral'] and response['deferral']['reason'] == 'delay':
                 tzlocal = dateutil.tz.tzlocal()
                 until = dateutil.parser.parse(response['deferral']['until']).astimezone(tzlocal)
                 remain = int((until - datetime.datetime.now(tzlocal)).total_seconds())
