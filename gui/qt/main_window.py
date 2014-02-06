@@ -915,6 +915,7 @@ class ElectrumWindow(QMainWindow):
                 if self.question(str(de)):
                     try:
                         tx = de.retry()
+                        break
                     except DeferralException as de1:
                         de = de1
                     except Exception as e:
@@ -922,8 +923,7 @@ class ElectrumWindow(QMainWindow):
                         self.show_message(str(e))
                         return
                 else:
-                    break
-            return
+                    return
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             self.show_message(str(e))
