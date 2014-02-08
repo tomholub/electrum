@@ -104,30 +104,34 @@ class OracleDeferralException(DeferralException):
 class Oracle_Account(account.BIP32_Account_2of3):
     def __init__(self, v):
         self.oracle = v['oracle']
-        self.backup = v['backup']
-        h = http.Http()
-        res, content = h.request(self.oracle, 'GET', None, headers)
-        if res.status != 200:
-            raise Exception("Error %d from Oracle"%(res.status))
-        response = json.loads(content)
-        if response['result'] != 'success':
-            raise Exception("Result %s from Oracle"%(response['result']))
-        oracle = DeserializeExtendedKey(response['keys']['default'][0])
-        backup = DeserializeExtendedKey(v['backup'])
-        v['c2'] = backup['chain_code'].encode('hex')
-        v['K2'] = backup['K'].encode('hex')
-        v['cK2'] = backup['cK'].encode('hex')
-        v['c3'] = oracle['chain_code'].encode('hex')
-        v['K3'] = oracle['K'].encode('hex')
-        v['cK3'] = oracle['cK'].encode('hex')
-        print "derived="
-        print SerializeExtendedPublicKey(2, "00000000".decode('hex'), 0, v['c'].decode('hex'), v['cK'].decode('hex'))
+        self.my_key = v['my_key']
+        self.backup_key = v['backup_key']
+
+        if not v.has_key('c2'):
+            h = http.Http()
+            res, content = h.request(self.oracle, 'GET', None, headers)
+            if res.status != 200:
+                raise Exception("Error %d from Oracle"%(res.status))
+            response = json.loads(content)
+            if response['result'] != 'success':
+                raise Exception("Result %s from Oracle"%(response['result']))
+            oracle = DeserializeExtendedKey(response['keys']['default'][0])
+            backup = DeserializeExtendedKey(v['backup_key'])
+            v['c2'] = backup['chain_code'].encode('hex')
+            v['K2'] = backup['K'].encode('hex')
+            v['cK2'] = backup['cK'].encode('hex')
+            v['c3'] = oracle['chain_code'].encode('hex')
+            v['K3'] = oracle['K'].encode('hex')
+            v['cK3'] = oracle['cK'].encode('hex')
+            print "derived="
+            print SerializeExtendedPublicKey(2, "00000000".decode('hex'), 0, v['c'].decode('hex'), v['cK'].decode('hex'))
         account.BIP32_Account_2of3.__init__(self, v)
 
     def dump(self):
         d = account.BIP32_Account_2of3.dump(self)
         d['oracle'] = self.oracle
-        d['backup'] = self.backup
+        d['backup_key'] = self.backup_key
+        d['my_key'] = self.my_key
         return d
 
     def sign(self, wallet, tx, input_list):
@@ -147,17 +151,36 @@ class Oracle_Account(account.BIP32_Account_2of3):
                 input_scripts.append(None)
                 chain_paths.append(None)
 
+        output_chain_paths = []
+        for i, (address, value) in enumerate(tx.outputs):
+            if not wallet.is_mine(address):
+                output_chain_paths.append(None)
+            else:
+                account, path = wallet.get_address_index(address)
+                if wallet.accounts[account] == self:
+                    output_chain_paths.append("%d/%d"%(path[0], path[1]))
+                else:
+                    output_chain_paths.append(None)
+
+        master_keys = [ self.my_key, self.backup_key ]
         req = {
                 "transaction": {
                     "bytes": tx.raw,
                     "inputScripts": input_scripts,
                     "inputTransactions": input_txs,
                     "chainPaths": chain_paths,
+                    "outputChainPaths": output_chain_paths,
+                    "masterKeys": master_keys,
                     }
                 }
+
+        print json.dumps(req)
+
         h = http.Http()
         res, content = h.request(self.oracle + "/transactions", 'POST', json.dumps(req), headers)
+
         print content
+
         if res.status != 200 and res.status != 400:
             raise Exception("Error %d from Oracle"%(res.status))
         response = json.loads(content)

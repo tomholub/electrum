@@ -1559,14 +1559,14 @@ class Wallet:
         c0, K0, cK0 = bip32_public_derivation(master_c0.decode('hex'), master_K0.decode('hex'), "m/0'/", "m/0'/%d"%i)
 
         #FIXME parent ID
-        mykey = cryptocorp.SerializeExtendedPublicKey(2, "00000000".decode('hex'), i, master_c0.decode('hex'), master_cK0.decode('hex'))
-        return (account_id, i, c0, K0, cK0, mykey)
+        my_key = cryptocorp.SerializeExtendedPublicKey(2, "00000000".decode('hex'), i, c0.decode('hex'), cK0.decode('hex'))
+        return (account_id, i, c0, K0, cK0, my_key)
 
-    def create_oracle_account(self, oracle, backup, name = None):
+    def create_oracle_account(self, oracle, my_key, backup_key, name = None):
         import cryptocorp
         account_id, i, c0, K0, cK0, mykey = self.next_oracle_account()
 
-        account = cryptocorp.Oracle_Account({ 'c':c0, 'K':K0, 'cK':cK0, 'oracle': oracle, 'backup': backup})
+        account = cryptocorp.Oracle_Account({ 'c':c0, 'K':K0, 'cK':cK0, 'oracle': oracle, 'backup_key': backup_key, 'my_key': my_key})
         self.accounts[account_id] = account
         self.save_accounts()
         if name:
