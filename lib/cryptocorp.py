@@ -94,11 +94,15 @@ def make_keychain(base_url, my_key, backup_key, parameters, pii):
     return oracle_url
 
 class OracleDeferralException(DeferralException):
-    def __init__(self, message, account, params):
+    def __init__(self, message, account, params, verifications):
         Exception.__init__(self, message)
         self.account = account
         self.params = params
+        self.verifications = verifications or []
+        self.otp = None
+
     def retry(self):
+        self.account.otp = self.otp
         return self.account.sign(*self.params)
 
 class Oracle_Account(account.BIP32_Account_2of3):
@@ -106,6 +110,7 @@ class Oracle_Account(account.BIP32_Account_2of3):
         self.oracle = v['oracle']
         self.my_key = v['my_key']
         self.backup_key = v['backup_key']
+        self.otp = None
 
         if not v.has_key('c2'):
             h = http.Http()
@@ -173,6 +178,11 @@ class Oracle_Account(account.BIP32_Account_2of3):
                     "masterKeys": master_keys,
                     }
                 }
+        if self.otp:
+            req['verifications'] = {}
+            req['verifications']['otp'] = self.otp
+
+        self.otp = None
 
         print json.dumps(req)
 
@@ -191,9 +201,9 @@ class Oracle_Account(account.BIP32_Account_2of3):
                 tzlocal = dateutil.tz.tzlocal()
                 until = dateutil.parser.parse(response['deferral']['until']).astimezone(tzlocal)
                 remain = int((until - datetime.datetime.now(tzlocal)).total_seconds())
-                raise OracleDeferralException("Oracle deferred transaction, please resubmit at %s (%s seconds from now)"%(until.strftime("%Y-%m-%d %H:%M:%S"), remain), self, (wallet, tx, input_list))
+                raise OracleDeferralException("Oracle deferred transaction, please resubmit at %s (%s seconds from now)"%(until.strftime("%Y-%m-%d %H:%M:%S"), remain), self, (wallet, tx, input_list), response['deferral'].get('verifications'))
             else:
-                raise OracleDeferralException("Oracle deferred transaction, please resubmit after verification", self, (wallet, tx, input_list))
+                raise OracleDeferralException("Oracle deferred transaction, please resubmit after verification", self, (wallet, tx, input_list), response['deferral'].get('verifications'))
         if response['result'] != 'success':
             raise Exception("Result %s from Oracle"%(response['result']))
         tx = Transaction(response['transaction']['bytes'], True)

@@ -22,6 +22,11 @@ from electrum_gui.qt import HelpButton, EnterButton
 
 from electrum import cryptocorp
 
+from electrum_gui.qt.qrcodewidget import QRCodeWidget
+
+from random import SystemRandom
+from base64 import b32encode
+
 class Plugin(BasePlugin):
 
     def fullname(self):
@@ -35,6 +40,39 @@ class Plugin(BasePlugin):
 
     def init(self):
         self.window = self.gui.main_window
+        self.window.deferral_question = self.deferral_question
+
+    def deferral_question(self, de):
+        d = QDialog()
+        layout = QGridLayout(d)
+        label = QLabel(str(de))
+        label.setWordWrap(True)
+        layout.addWidget(label,0,0,1,2)
+
+        otp = None
+
+        if 'otp' in de.verifications:
+            layout.addWidget(QLabel("One time password: "),1,0)
+
+            otp = QLineEdit()
+
+            layout.addWidget(otp, 1,1)
+
+        resubmit = QPushButton(_("Resubmit"))
+        resubmit.clicked.connect(d.accept)
+
+        c = QPushButton(_("Cancel"))
+        c.clicked.connect(d.reject)
+
+        layout.addWidget(resubmit,2,2)
+        layout.addWidget(c,2,1)
+
+        if d.exec_():
+            if otp:
+                de.otp = str(otp.text())
+            return True
+        else:
+            return False
 
     def load_wallet(self, wallet):
         self.init()
@@ -102,11 +140,11 @@ class Plugin(BasePlugin):
         l.setWordWrap(True)
         vbox.addWidget(l)
 
-        vbox.addWidget(QLabel(_('Email')+':'))
+        vbox.addWidget(QLabel(_('Email (optional)')+':'))
         email = QLineEdit()
         vbox.addWidget(email)
 
-        vbox.addWidget(QLabel(_('Phone')+':'))
+        vbox.addWidget(QLabel(_('Phone (optional)')+':'))
         phone = QLineEdit()
         vbox.addWidget(phone)
 
@@ -123,6 +161,26 @@ class Plugin(BasePlugin):
         backup = QLineEdit('xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH')
         vbox.addWidget(backup)
 
+        vbox.addWidget(QLabel(_('OTP (optional)')+':'))
+        qrw = QRCodeWidget()
+        vbox.addWidget(qrw)
+
+        otp_secret = b32encode(("%x"%(SystemRandom().getrandbits(120))).decode('hex'))
+        print otp_secret
+
+        def check_name():
+            if (str(e.text()) != ""):
+                qrw.set_addr("otpauth://totp/Digital-Oracle-%s?secret=%s"%(e.text(), otp_secret))
+            else:
+                qrw.set_addr("")
+            qrw.update_qr()
+
+        e.textChanged.connect(check_name)
+        check_name()
+
+        otp = QLineEdit()
+        vbox.addWidget(otp)
+
         vbox.addLayout(ok_cancel_buttons(dialog))
         dialog.setLayout(vbox)
         r = dialog.exec_()
@@ -136,6 +194,7 @@ class Plugin(BasePlugin):
         velocity_1_text = str(velocity_1.text())
         delay_2_text = str(delay_2.text())
         backup_text = str(backup.text())
+        otp_text = str(otp.text())
         parameters = {
                 'velocity_1': {
                     'value': float(velocity_1_text),
@@ -143,9 +202,18 @@ class Plugin(BasePlugin):
                     'period': 60,
                     'limited_keys': [0],
                     },
-                'delay_2': (int(delay_2_text) if delay_2_text != "" else None),
-                'call_2': ['phone', 'email']
+                'delay_2': (int(delay_2_text) if delay_2_text != "" else None)
                 }
+        if phone_text and phone_text != "":
+            parameters['call_2'] = ['phone', 'email']
+            # TODO
+
+        if otp_text and otp_text != "":
+            parameters['otp'] = otp_text
+            parameters['otp_secret'] = otp_secret
+            parameters['otp_type'] = 'totp'
+            parameters['verify_2'] = ['otp']
+
         pii = {
                 "phone": phone_text,
                 "email": email_text

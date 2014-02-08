@@ -192,6 +192,7 @@ class ElectrumWindow(QMainWindow):
 
         self.wallet = None
         self.init_lite()
+        self.deferral_question = self.question
 
 
     def go_full(self):
@@ -912,7 +913,7 @@ class ElectrumWindow(QMainWindow):
                     domain=self.get_payment_sources())
         except DeferralException as de:
             while (True):
-                if self.question(str(de)):
+                if self.deferral_question(de):
                     try:
                         tx = de.retry()
                         break
