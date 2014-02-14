@@ -156,14 +156,23 @@ class Plugin(BasePlugin):
         delay_2 = QLineEdit("60")
         vbox.addWidget(delay_2)
 
-        vbox.addWidget(QLabel(_('Backup Key (xpub)')+':'))
+        hbox = QHBoxLayout()
+        vbox1 = QVBoxLayout()
+        hbox.addLayout(vbox)
+        hbox.addLayout(vbox1)
+
+        vbox1.addWidget(QLabel(_('Backup Key (xpub)')+':'))
         #backup = QLineEdit()
         backup = QLineEdit('xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH')
-        vbox.addWidget(backup)
+        vbox1.addWidget(backup)
 
-        vbox.addWidget(QLabel(_('OTP (optional)')+':'))
+        vbox1.addWidget(QLabel(_('OTP (optional)')+':'))
+
+        otp = QLineEdit()
+        vbox1.addWidget(otp)
+
         qrw = QRCodeWidget()
-        vbox.addWidget(qrw)
+        vbox1.addWidget(qrw)
 
         otp_secret = b32encode(("%x"%(SystemRandom().getrandbits(120))).decode('hex'))
         print otp_secret
@@ -178,11 +187,8 @@ class Plugin(BasePlugin):
         e.textChanged.connect(check_name)
         check_name()
 
-        otp = QLineEdit()
-        vbox.addWidget(otp)
-
         vbox.addLayout(ok_cancel_buttons(dialog))
-        dialog.setLayout(vbox)
+        dialog.setLayout(hbox)
         r = dialog.exec_()
         if not r: return
 
