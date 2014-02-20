@@ -1,4 +1,4 @@
-Electrum - lightweight Bitcoin client
+HDM - lightweight Bitcoin client
 
 Licence: GNU GPL v3
 Author: thomasv@bitcointalk.org
@@ -13,9 +13,9 @@ Homepage: http://electrum.org/
 
 == RUN ==
 
-To start Electrum in GUI mode, type:
+To start HDM in GUI mode, type:
 
-  electrum
+  hdm
 
 == HELP ==
 
@@ -37,7 +37,7 @@ On Mac OS X:
   # On brew installs
   ARCHFLAGS="-arch i386 -arch x86_64" sudo python setup-release.py py2app --includes sip
 
-  sudo hdiutil create -fs HFS+ -volname "Electrum" -srcfolder dist/Electrum.app dist/electrum-VERSION-macosx.dmg
+  sudo hdiutil create -fs HFS+ -volname "HDM" -srcfolder dist/HDM.app dist/hdm-VERSION-macosx.dmg
 
 
 == BROWSER CONFIGURATION ==

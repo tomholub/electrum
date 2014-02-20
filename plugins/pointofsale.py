@@ -28,7 +28,7 @@ class QR_Window(QWidget):
     def __init__(self, exchanger):
         QWidget.__init__(self)
         self.exchanger = exchanger
-        self.setWindowTitle('Electrum - '+_('Invoice'))
+        self.setWindowTitle('HDM - '+_('Invoice'))
         self.setMinimumSize(800, 250)
         self.address = ''
         self.label = ''

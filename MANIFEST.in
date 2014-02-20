@@ -1,6 +1,6 @@
 include README LICENCE RELEASE-NOTES AUTHORS
-include electrum.conf.sample
-include electrum.desktop
+include hdm.conf.sample
+include hdm.desktop
 include *.py
 include electrum
 recursive-include lib *.py

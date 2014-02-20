@@ -30,7 +30,7 @@ def waiting_dialog(f, w=None):
     if not w:
         w = QDialog()
         w.resize(200, 70)
-        w.setWindowTitle('Electrum')
+        w.setWindowTitle('HDM')
     else:
         if w.layout(): QWidget().setLayout(w.layout())
 

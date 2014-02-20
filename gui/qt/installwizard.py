@@ -21,7 +21,7 @@ class InstallWizard(QDialog):
         self.network = network
         self.storage = storage
         self.setMinimumSize(575, 400)
-        self.setWindowTitle('Electrum')
+        self.setWindowTitle('HDM')
         self.connect(self, QtCore.SIGNAL('accept'), self.accept)
 
         self.stack = QStackedLayout()
@@ -39,7 +39,7 @@ class InstallWizard(QDialog):
         grid = QGridLayout()
         grid.setSpacing(5)
 
-        msg = _("Electrum could not find an existing wallet.") + "\n\n" \
+        msg = _("HDM could not find an existing wallet.") + "\n\n" \
             + _("What do you want to do?") + "\n"
         label = QLabel(msg)
         label.setWordWrap(True)
@@ -137,7 +137,7 @@ class InstallWizard(QDialog):
 
 
 
-    def waiting_dialog(self, task, msg= _("Electrum is generating your addresses, please wait.")):
+    def waiting_dialog(self, task, msg= _("HDM is generating your addresses, please wait.")):
         def target():
             task()
             self.emit(QtCore.SIGNAL('accept'))
@@ -191,7 +191,7 @@ class InstallWizard(QDialog):
         grid = QGridLayout()
         grid.setSpacing(5)
 
-        label = QLabel(_("Electrum communicates with remote servers to get information about your transactions and addresses. The servers all fulfil the same purpose only differing in hardware. In most cases you simply want to let Electrum pick one at random if you have a preference though feel free to select a server manually.") + "\n\n" \
+        label = QLabel(_("HDM communicates with remote servers to get information about your transactions and addresses. The servers all fulfil the same purpose only differing in hardware. In most cases you simply want to let HDM pick one at random if you have a preference though feel free to select a server manually.") + "\n\n" \
                       + _("How do you want to connect to a server:")+" ")
         label.setWordWrap(True)
         grid.addWidget(label, 0, 0)

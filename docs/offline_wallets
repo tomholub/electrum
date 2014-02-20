@@ -1,4 +1,4 @@
-Here is how to sign a transaction with an offline Electrum wallet.
+Here is how to sign a transaction with an offline HDM wallet.
 
 1. With your online (seedless) wallet, create the transaction using mktx:
 

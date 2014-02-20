@@ -13,7 +13,7 @@ version = imp.load_source('version', 'lib/version.py')
 util = imp.load_source('version', 'lib/util.py')
 
 if sys.version_info[:3] < (2, 6, 0):
-    sys.exit("Error: Electrum requires Python version >= 2.6.0...")
+    sys.exit("Error: HDM requires Python version >= 2.6.0...")
 
 usr_share = '/usr/share'
 if not os.access(usr_share, os.W_OK):
@@ -23,8 +23,8 @@ data_files = []
 if (len(sys.argv) > 1 and (sys.argv[1] == "sdist")) or (platform.system() != 'Windows' and platform.system() != 'Darwin'):
     print "Including all files"
     data_files += [
-        (os.path.join(usr_share, 'applications/'), ['electrum.desktop']),
-        (os.path.join(usr_share, 'app-install', 'icons/'), ['icons/electrum.png'])
+        (os.path.join(usr_share, 'applications/'), ['hdm.desktop']),
+        (os.path.join(usr_share, 'app-install', 'icons/'), ['icons/hdm.png'])
     ]
     if not os.path.exists('locale'):
         os.mkdir('locale')
@@ -55,7 +55,7 @@ data_files += [
 
 
 setup(
-    name="Electrum",
+    name="HDM",
     version=version.ELECTRUM_VERSION,
     install_requires=['slowaes', 'ecdsa>=0.9'],
     package_dir={
@@ -63,7 +63,7 @@ setup(
         'electrum_gui': 'gui',
         'electrum_plugins': 'plugins',
     },
-    scripts=['electrum'],
+    scripts=['hdm'],
     data_files=data_files,
     py_modules=[
         'electrum.account',

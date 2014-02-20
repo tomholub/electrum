@@ -28,7 +28,7 @@ class SeedDialog(QDialog):
     def __init__(self, parent, seed, imported_keys):
         QDialog.__init__(self, parent)
         self.setModal(1)
-        self.setWindowTitle('Electrum' + ' - ' + _('Seed'))
+        self.setWindowTitle('HDM' + ' - ' + _('Seed'))
         self.parent = parent
 
         vbox = make_seed_dialog(seed, imported_keys)
@@ -41,7 +41,7 @@ class PrivateKeysDialog(QDialog):
     def __init__(self, parent, private_keys):
         QDialog.__init__(self, parent)
         self.setModal(1)
-        self.setWindowTitle('Electrum' + ' - ' + _('Master Private Keys'))
+        self.setWindowTitle('HDM' + ' - ' + _('Master Private Keys'))
         self.parent = parent
         vbox = QVBoxLayout(self)
         vbox.addWidget(QLabel(_("The seed has been removed from the wallet. It contains the following master private keys")+ ":"))

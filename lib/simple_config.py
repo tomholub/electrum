@@ -128,7 +128,7 @@ a SimpleConfig instance then reads the wallet file.
             try:
                 import ConfigParser
             except ImportError:
-                print "cannot parse electrum.conf. please install ConfigParser"
+                print "cannot parse hdm.conf. please install ConfigParser"
                 return
                 
             p = ConfigParser.ConfigParser()

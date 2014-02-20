@@ -101,7 +101,7 @@ class ElectrumWindow(QMainWindow):
         m = QMenu()
         m.addAction(_("Show/Hide"), self.show_or_hide)
         m.addSeparator()
-        m.addAction(_("Exit Electrum"), self.close)
+        m.addAction(_("Exit HDM"), self.close)
         self.tray.setContextMenu(m)
 
     def show_or_hide(self):
@@ -124,13 +124,13 @@ class ElectrumWindow(QMainWindow):
         self.lite = None
 
         if sys.platform == 'darwin':
-          self.icon = QIcon(":icons/electrum_dark_icon.png")
+          self.icon = QIcon(":icons/hdm_dark_icon.png")
           #self.icon = QIcon(":icons/lock.png")
         else:
-          self.icon = QIcon(':icons/electrum_light_icon.png')
+          self.icon = QIcon(':icons/hdm_light_icon.png')
 
         self.tray = QSystemTrayIcon(self.icon, self)
-        self.tray.setToolTip('Electrum')
+        self.tray.setToolTip('HDM')
         self.tray.activated.connect(self.tray_activated)
 
         self.build_menu()
@@ -210,7 +210,7 @@ class ElectrumWindow(QMainWindow):
         import lite_window
         if not self.check_qt_version():
             if self.config.get('lite_mode') is True:
-                msg = "Electrum was unable to load the 'Lite GUI' because it needs Qt version >= 4.7.\nChanging your config to use the 'Classic' GUI"
+                msg = "HDM was unable to load the 'Lite GUI' because it needs Qt version >= 4.7.\nChanging your config to use the 'Classic' GUI"
                 QMessageBox.warning(None, "Could not start Lite GUI.", msg)
                 self.config.set_key('lite_mode', False, True)
                 sys.exit(0)
@@ -262,7 +262,7 @@ class ElectrumWindow(QMainWindow):
         self.accounts_expanded = self.wallet.storage.get('accounts_expanded',{})
         self.current_account = self.wallet.storage.get("current_account", None)
 
-        title = 'Electrum ' + self.wallet.electrum_version + '  -  ' + self.wallet.storage.path
+        title = 'HDM ' + self.wallet.electrum_version + '  -  ' + self.wallet.storage.path
         if self.wallet.is_watching_only(): title += ' [%s]' % (_('watching only'))
         self.setWindowTitle( title )
         self.update_wallet()
@@ -312,7 +312,7 @@ class ElectrumWindow(QMainWindow):
                 shutil.copy2(path, new_path)
                 QMessageBox.information(None,"Wallet backup created", _("A copy of your wallet file was created in")+" '%s'" % str(new_path))
             except (IOError, os.error), reason:
-                QMessageBox.critical(None,"Unable to create backup", _("Electrum was unable to copy your wallet file to the specified location.")+"\n" + str(reason))
+                QMessageBox.critical(None,"Unable to create backup", _("HDM was unable to copy your wallet file to the specified location.")+"\n" + str(reason))
 
 
     def new_wallet(self):
@@ -397,7 +397,7 @@ class ElectrumWindow(QMainWindow):
         tools_menu = menubar.addMenu(_("&Tools"))
 
         # Settings / Preferences are all reserved keywords in OSX using this as work around
-        preferences_name = _("Electrum preferences") if sys.platform == 'darwin' else _("Preferences")
+        preferences_name = _("HDM preferences") if sys.platform == 'darwin' else _("Preferences")
         preferences_menu = tools_menu.addAction(preferences_name)
         #preferences_menu.setShortcut(QKeySequence.Preferences)
         preferences_menu.triggered.connect(self.settings_dialog)
@@ -446,11 +446,11 @@ class ElectrumWindow(QMainWindow):
         self.setMenuBar(menubar)
 
     def show_about(self):
-        QMessageBox.about(self, "Electrum",
-            _("Version")+" %s" % (self.wallet.electrum_version) + "\n\n" + _("Electrum's focus is speed, with low resource usage and simplifying Bitcoin. You do not need to perform regular backups, because your wallet can be recovered from a secret phrase that you can memorize or write on paper. Startup times are instant because it operates in conjunction with high-performance servers that handle the most complicated parts of the Bitcoin system."))
+        QMessageBox.about(self, "HDM",
+            _("Version")+" %s" % (self.wallet.electrum_version) + "\n\n" + _("HDM's focus is speed, with low resource usage and simplifying Bitcoin. You do not need to perform regular backups, because your wallet can be recovered from a secret phrase that you can memorize or write on paper. Startup times are instant because it operates in conjunction with high-performance servers that handle the most complicated parts of the Bitcoin system."))
 
     def show_report_bug(self):
-        QMessageBox.information(self, "Electrum - " + _("Reporting Bugs"),
+        QMessageBox.information(self, "HDM - " + _("Reporting Bugs"),
             _("Please report any bugs as issues on github:")+" <a href=\"https://github.com/spesmilo/electrum/issues\">https://github.com/spesmilo/electrum/issues</a>")
 
 
@@ -482,7 +482,7 @@ class ElectrumWindow(QMainWindow):
                           self.notify(_("New transaction received. %(amount)s %(unit)s") % { 'amount' : self.format_amount(v), 'unit' : self.base_unit()})
 
     def notify(self, message):
-        self.tray.showMessage("Electrum", message, QSystemTrayIcon.Information, 20000)
+        self.tray.showMessage("HDM", message, QSystemTrayIcon.Information, 20000)
 
 
 
@@ -1870,7 +1870,7 @@ class ElectrumWindow(QMainWindow):
         except Exception:
             pass
 
-        QMessageBox.critical(None, _("Unable to parse transaction"), _("Electrum was unable to parse your transaction"))
+        QMessageBox.critical(None, _("Unable to parse transaction"), _("HDM was unable to parse your transaction"))
 
 
 
@@ -1882,7 +1882,7 @@ class ElectrumWindow(QMainWindow):
             with open(fileName, "r") as f:
                 file_content = f.read()
         except (ValueError, IOError, os.error), reason:
-            QMessageBox.critical(None, _("Unable to read file or no transaction found"), _("Electrum was unable to open your transaction file") + "\n" + str(reason))
+            QMessageBox.critical(None, _("Unable to read file or no transaction found"), _("HDM was unable to open your transaction file") + "\n" + str(reason))
 
         return self.tx_from_text(file_content)
 
@@ -1925,7 +1925,7 @@ class ElectrumWindow(QMainWindow):
                 amount = int(100000000*amount)
                 outputs.append((address, amount))
         except (ValueError, IOError, os.error), reason:
-            QMessageBox.critical(None, _("Unable to read file or no transaction found"), _("Electrum was unable to open your transaction file") + "\n" + str(reason))
+            QMessageBox.critical(None, _("Unable to read file or no transaction found"), _("HDM was unable to open your transaction file") + "\n" + str(reason))
             return
 
         try:
@@ -1945,7 +1945,7 @@ class ElectrumWindow(QMainWindow):
                 csvReader = csv.reader(f)
                 self.do_process_from_csvReader(csvReader)
         except (ValueError, IOError, os.error), reason:
-            QMessageBox.critical(None, _("Unable to read file or no transaction found"), _("Electrum was unable to open your transaction file") + "\n" + str(reason))
+            QMessageBox.critical(None, _("Unable to read file or no transaction found"), _("HDM was unable to open your transaction file") + "\n" + str(reason))
             return
 
     def do_process_from_csv_text(self):
@@ -1984,7 +1984,7 @@ class ElectrumWindow(QMainWindow):
                     self.show_message(_("Private keys exported."))
 
         except (IOError, os.error), reason:
-            export_error_label = _("Electrum was unable to produce a private key-export.")
+            export_error_label = _("HDM was unable to produce a private key-export.")
             QMessageBox.critical(None, _("Unable to create csv"), export_error_label + "\n" + str(reason))
 
         except Exception as e:
@@ -2003,7 +2003,7 @@ class ElectrumWindow(QMainWindow):
                 self.wallet.set_label(key, value)
             QMessageBox.information(None, _("Labels imported"), _("Your labels were imported from")+" '%s'" % str(labelsFile))
         except (IOError, os.error), reason:
-            QMessageBox.critical(None, _("Unable to import labels"), _("Electrum was unable to import your labels.")+"\n" + str(reason))
+            QMessageBox.critical(None, _("Unable to import labels"), _("HDM was unable to import your labels.")+"\n" + str(reason))
 
 
     def do_export_labels(self):
@@ -2015,7 +2015,7 @@ class ElectrumWindow(QMainWindow):
                     json.dump(labels, f)
                 QMessageBox.information(None, _("Labels exported"), _("Your labels where exported to")+" '%s'" % str(fileName))
         except (IOError, os.error), reason:
-            QMessageBox.critical(None, _("Unable to export labels"), _("Electrum was unable to export your labels.")+"\n" + str(reason))
+            QMessageBox.critical(None, _("Unable to export labels"), _("HDM was unable to export your labels.")+"\n" + str(reason))
 
 
     def do_export_history(self):
@@ -2057,7 +2057,7 @@ class ElectrumWindow(QMainWindow):
 
     def settings_dialog(self):
         d = QDialog(self)
-        d.setWindowTitle(_('Electrum Settings'))
+        d.setWindowTitle(_('HDM Settings'))
         d.setModal(1)
         vbox = QVBoxLayout()
         grid = QGridLayout()
@@ -2171,7 +2171,7 @@ class ElectrumWindow(QMainWindow):
         run_hook('close_settings_dialog')
 
         if need_restart:
-            QMessageBox.warning(self, _('Success'), _('Please restart Electrum to activate the new GUI settings'), _('OK'))
+            QMessageBox.warning(self, _('Success'), _('Please restart HDM to activate the new GUI settings'), _('OK'))
 
 
     def run_network_dialog(self):
@@ -2194,7 +2194,7 @@ class ElectrumWindow(QMainWindow):
         from electrum.plugins import plugins
 
         d = QDialog(self)
-        d.setWindowTitle(_('Electrum Plugins'))
+        d.setWindowTitle(_('HDM Plugins'))
         d.setModal(1)
 
         vbox = QVBoxLayout(d)
