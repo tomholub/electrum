@@ -1,9 +1,11 @@
-HDM - lightweight Bitcoin client
+HDM - lightweight Bitcoin client based on Electrum
 
 Licence: GNU GPL v3
 Author: thomasv@bitcointalk.org
 Language: Python
 Homepage: http://electrum.org/
+
+Author: c1.devrandom@niftybox.net (HDM)
 
 
 == INSTALL ==

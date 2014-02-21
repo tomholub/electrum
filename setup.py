@@ -116,7 +116,7 @@ setup(
     ],
     description="Lightweight Bitcoin Wallet",
     author="ecdsa",
-    author_email="ecdsa@github",
+    author_email="c1.devrandom@niftybox.net",
     license="GNU GPLv3",
     url="http://electrum.org",
     long_description="""Lightweight Bitcoin Wallet"""
