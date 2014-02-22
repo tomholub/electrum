@@ -85,7 +85,7 @@ class Plugin(BasePlugin):
         return EnterButton(_('Settings'), self.settings_dialog)
 
     def base_url(self):
-        return self.config.get("base_url", "http://s.digitaloracle.co/")
+        return self.config.get("base_url", "https://s.digitaloracle.co/")
 
     def requires_settings(self):
         return True
