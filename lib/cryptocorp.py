@@ -152,7 +152,6 @@ class Oracle_Account(account.BIP32_Account_2of3):
         if recovery_mode:
             return tx
 
-        debug_trace()
         # Have the Oracle sign the tx
         input_txs = []
         chain_paths = []

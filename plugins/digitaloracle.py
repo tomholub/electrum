@@ -93,13 +93,25 @@ class Plugin(BasePlugin):
     def requires_settings(self):
         return True
 
+    def account_detail(self, k, vbox):
+        print "detail for %s" %(k)
+        account = self.wallet.accounts[k]
+        account_dump = account.dump()
+        xpub = cryptocorp.SerializeExtendedPublicKey(2, "00000000".decode('hex'), 0, account_dump['c'].decode('hex'), account_dump['cK'].decode('hex'))
+        vbox.addWidget(QLabel(_("Extended Public Key:")))
+        xpub_line = QLabel(xpub)
+        xpub_line.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        vbox.addWidget(xpub_line)
+        qrw = QRCodeWidget(xpub)
+        vbox.addWidget(qrw)
+
     def settings_dialog(self):
         def check_url(url):
             pass
 
         d = QDialog()
         layout = QGridLayout(d)
-        layout.addWidget(QLabel("Oracle base URL: "),0,0)
+        layout.addWidget(QLabel(_("Oracle base URL: ")),0,0)
 
         self.url_edit = QLineEdit(self.base_url())
         self.url_edit.textChanged.connect(check_url)

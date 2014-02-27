@@ -2273,4 +2273,5 @@ class ElectrumWindow(QMainWindow):
         #    vbox.addWidget(text)
 
         vbox.addLayout(close_button(d))
+        run_hook('account_detail', k, vbox)
         d.exec_()
