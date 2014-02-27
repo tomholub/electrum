@@ -19,6 +19,13 @@ from transaction import Transaction
 from util import DeferralException
 import uuid
 
+recovery_mode = False
+
+def set_recovery_mode(recovery):
+    global recovery_mode
+    print "setting recovery = %s"%(recovery)
+    recovery_mode = recovery
+
 headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json; charset=UTF-8'
@@ -140,6 +147,13 @@ class Oracle_Account(account.BIP32_Account_2of3):
         return d
 
     def sign(self, wallet, tx, input_list):
+        # If we are in recovery mode, return incomplete tx.  The UI will then
+        # prompt the user to export it so that it can be signed by the recovery key.
+        if recovery_mode:
+            return tx
+
+        debug_trace()
+        # Have the Oracle sign the tx
         input_txs = []
         chain_paths = []
         input_scripts = []

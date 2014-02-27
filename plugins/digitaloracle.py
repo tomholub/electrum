@@ -41,6 +41,7 @@ class Plugin(BasePlugin):
     def init(self):
         self.window = self.gui.main_window
         self.window.deferral_question = self.deferral_question
+        cryptocorp.set_recovery_mode(self.recovery())
 
     def deferral_question(self, de):
         d = QDialog()
@@ -79,7 +80,6 @@ class Plugin(BasePlugin):
         self.wallet = wallet
         self.window.new_account.triggered.disconnect(self.window.new_account_dialog)
         self.window.new_account.triggered.connect(self.new_account_dialog)
-        print "load_wallet"
 
     def settings_widget(self, window):
         return EnterButton(_('Settings'), self.settings_dialog)
@@ -87,13 +87,15 @@ class Plugin(BasePlugin):
     def base_url(self):
         return self.config.get("base_url", "https://s.digitaloracle.co/")
 
+    def recovery(self):
+        return self.config.get("recovery", False)
+
     def requires_settings(self):
         return True
 
     def settings_dialog(self):
         def check_url(url):
-            self.config.set_key("base_url", str(self.url_edit.text()))
-            print url
+            pass
 
         d = QDialog()
         layout = QGridLayout(d)
@@ -110,12 +112,23 @@ class Plugin(BasePlugin):
         self.accept = QPushButton(_("Done"))
         self.accept.clicked.connect(d.accept)
 
-        layout.addWidget(c,3,1)
-        layout.addWidget(self.accept,3,2)
+        self.recovery_box = QCheckBox(_(""))
+        self.recovery_box.setCheckState(Qt.Checked if self.recovery() else Qt.Unchecked)
+
+        layout.addWidget(self.recovery_box,2,1)
+        label = QLabel(_("Recovery: in this mode transactions are to be signed by the recovery key. The Oracle will not be contacted"))
+        label.setWordWrap(True)
+        layout.addWidget(label, 2, 0)
+        layout.addWidget(c,4,1)
+        layout.addWidget(self.accept,4,2)
 
         check_url(self.base_url())
 
         if d.exec_():
+          self.config.set_key("base_url", str(self.url_edit.text()))
+          self.config.set_key("recovery", self.recovery_box.checkState() == Qt.Checked)
+
+          cryptocorp.set_recovery_mode(self.recovery())
           return True
         else:
           return False
