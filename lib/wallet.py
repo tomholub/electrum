@@ -379,6 +379,11 @@ class Wallet:
             if (c == cc) and (K == KK):
                 return key
 
+    def find_root_by_account(self, c, K):
+        for key, a in self.accounts.items():
+            if (c == a.c) and (K == a.K):
+                return key
+
     def deseed_root(self, seed, password):
         # for safety, we ask the user to enter their seed
         assert seed == self.get_seed(password)
@@ -637,11 +642,11 @@ class Wallet:
         rs = self.rebase_sequence(account, sequence)
         dd = []
         for root, public_sequence in rs:
+            s = '/' + '/'.join( map(lambda x:str(x), public_sequence) )
             if isinstance(root, Account):
-                dd.append( 'oracle' )
+                dd += root.keyID_elements(s)
                 continue
             c, K, _ = self.master_public_keys[root]
-            s = '/' + '/'.join( map(lambda x:str(x), public_sequence) )
             dd.append( 'bip32(%s,%s,%s)'%(c,K, s) )
         return '&'.join(dd)
 
@@ -713,16 +718,29 @@ class Wallet:
             if keyid:
                 roots = []
                 for s in keyid.split('&'):
-                    m = re.match("bip32\(([0-9a-f]+),([0-9a-f]+),(/\d+/\d+/\d+)", s)
+                    m = re.match("bip32\(([0-9a-f]+),([0-9a-f]+),(/\d+/\d+)(/\d+)?", s)
                     if not m: continue
                     c = m.group(1)
                     K = m.group(2)
-                    sequence = m.group(3)
-                    root = self.find_root_by_master_key(c,K)
-                    if not root: continue
-                    sequence = map(lambda x:int(x), sequence.strip('/').split('/'))
-                    root = root + '%d'%sequence[0]
-                    sequence = sequence[1:]
+                    sequence_s = m.group(3)
+                    sub_sequence_s = m.group(4)
+
+                    debug_trace()
+                    if sub_sequence_s:
+                        sequence_s = sequence_s + sub_sequence_s
+
+                    if sub_sequence_s:
+                        root = self.find_root_by_master_key(c,K)
+                        if not root: continue
+                        root = root + '%d'%sequence[0]
+                        sequence = map(lambda x:int(x), sequence_s.strip('/').split('/'))
+
+                        sequence = sequence[1:]
+                    else:
+                        root = self.find_root_by_account(c.decode('hex'),K.decode('hex'))
+                        if not root: continue
+                        sequence = map(lambda x:int(x), sequence_s.strip('/').split('/'))
+
                     roots.append((root,sequence)) 
 
                 account_id = " & ".join( map(lambda x:x[0], roots) )
@@ -1831,3 +1849,9 @@ class OldWallet(Wallet):
         assert k == 0
         return 'Main account'
 
+def debug_trace():
+  '''Set a tracepoint in the Python debugger that works with Qt'''
+  from PyQt4.QtCore import pyqtRemoveInputHook
+  from pdb import set_trace
+  pyqtRemoveInputHook()
+  set_trace()
