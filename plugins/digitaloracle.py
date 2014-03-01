@@ -42,6 +42,11 @@ class Plugin(BasePlugin):
         self.window = self.gui.main_window
         self.window.deferral_question = self.deferral_question
         cryptocorp.set_recovery_mode(self.recovery())
+        from electrum.plugins import plugins
+        self.scanner = None
+        for plugin in plugins:
+            if plugin.name == 'qrscanner':
+                self.scanner = plugin
 
     def deferral_question(self, de):
         d = QDialog()
@@ -190,6 +195,19 @@ class Plugin(BasePlugin):
         #backup = QLineEdit()
         backup = QLineEdit('xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH')
         vbox1.addWidget(backup)
+
+        def fill_from_qr(button):
+            res = self.scanner.scan_qr()
+            if res is None:
+                return
+            if not res.startswith("xpub"):
+                QMessageBox.warning(self.gui.main_window, _('Error'), _('Not an extended public key'), _('OK'))
+            backup.setText(res)
+
+        if self.scanner and self.scanner.is_enabled():
+            b = QPushButton(_("Scan QR code"))
+            b.clicked.connect(fill_from_qr)
+            vbox1.addWidget(b)
 
         vbox1.addWidget(QLabel(_('OTP (optional)')+':'))
 
