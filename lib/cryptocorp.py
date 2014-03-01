@@ -18,6 +18,7 @@ from wallet import Wallet
 from transaction import Transaction
 from util import DeferralException
 import uuid
+from version import ELECTRUM_VERSION
 
 recovery_mode = False
 
@@ -185,6 +186,7 @@ class Oracle_Account(account.BIP32_Account_2of3):
 
         master_keys = [ self.my_key, self.backup_key ]
         req = {
+                "walletAgent": "HDM-%s"%(ELECTRUM_VERSION),
                 "transaction": {
                     "bytes": tx.raw,
                     "inputScripts": input_scripts,

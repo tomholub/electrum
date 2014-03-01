@@ -701,7 +701,7 @@ class Wallet:
             private_keys = self.get_private_key(address, password)
             for sec in private_keys:
                 if isinstance(sec, tuple):
-                    keypairs[sec[0]] = (i, sec[1])
+                    keypairs.setdefault(sec[0], []).append((i, sec[1]))
                     continue
                 pubkey = public_key_from_private_key(sec)
                 keypairs[ pubkey ] = sec
@@ -725,7 +725,6 @@ class Wallet:
                     sequence_s = m.group(3)
                     sub_sequence_s = m.group(4)
 
-                    debug_trace()
                     if sub_sequence_s:
                         sequence_s = sequence_s + sub_sequence_s
 
@@ -1321,8 +1320,8 @@ class Wallet:
                         signing_account = account
                     elif signing_account != account:
                         raise Exception("no handling of multiple oracle accounts in one transaction yet")
-                    input_index, chain_path = keypairs[account]
-                    chain_paths[input_index] = chain_path
+                    for input_index, chain_path in keypairs[account]:
+                        chain_paths[input_index] = chain_path
         if signing_account:
             tx = signing_account.sign(self, tx, chain_paths)
         return tx
