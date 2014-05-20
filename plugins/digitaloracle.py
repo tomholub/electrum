@@ -227,23 +227,28 @@ class Plugin(BasePlugin):
         backup_text = str(backup.text())
         otp_text = str(otp.text())
         parameters = {
-                'velocity_1': {
-                    'value': float(velocity_1_text),
-                    'asset': 'BTC',
-                    'period': 60,
-                    'limited_keys': [0],
+                'levels': [
+                    {
+                        'value': float(velocity_1_text),
+                        'asset': 'BTC',
+                        'period': 60,
                     },
-                'delay_2': (int(delay_2_text) if delay_2_text != "" else None)
-                }
+                    {
+                        'delay': (int(delay_2_text) if delay_2_text != "" else None)
+                        },
+                    ],
+                    }
         if phone_text and phone_text != "":
-            parameters['call_2'] = ['phone', 'email']
+            parameters['levels'][1]['calls'] = ['phone', 'email']
             # TODO
 
         if otp_text and otp_text != "":
-            parameters['otp'] = otp_text
-            parameters['otp_secret'] = otp_secret
-            parameters['otp_type'] = 'totp'
-            parameters['verify_2'] = ['otp']
+            parameters['authenticator'] = {
+                    'firstValue': otp_text,
+                    'secret': otp_secret
+                    'type': 'totp'
+                    }
+            parameters['levels'][1]['verifications']: ['otp']
 
         pii = {
                 "phone": phone_text,
