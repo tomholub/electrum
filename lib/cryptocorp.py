@@ -185,6 +185,7 @@ class Oracle_Account(account.BIP32_Account_2of3):
 
         master_keys = [ self.my_key, self.backup_key ]
         req = {
+                "walletAgent": 'HDM-2.0-cc-003',
                 "transaction": {
                     "bytes": tx.raw,
                     "inputScripts": input_scripts,
