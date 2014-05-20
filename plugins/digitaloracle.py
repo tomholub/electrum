@@ -246,7 +246,6 @@ class Plugin(BasePlugin):
         backup_text = str(backup.text())
         otp_text = str(otp.text())
         parameters = {
-                "walletAgent": "HDM-%s"%(ELECTRUM_VERSION),
                 'levels': [
                     {
                         'value': float(velocity_1_text),

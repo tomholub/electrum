@@ -88,6 +88,7 @@ def make_keychain(base_url, my_key, backup_key, parameters, pii):
         print content
         raise Exception("Error %d from Oracle"%(res.status))
     body = json.dumps({
+        'walletAgent': "HDM-%s"%(ELECTRUM_VERSION),
         'rulesetId': 'default',
         'parameters': parameters,
         'pii': pii,
