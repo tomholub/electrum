@@ -29,6 +29,9 @@ from base64 import b32encode
 from electrum.version import ELECTRUM_VERSION
 
 class Plugin(BasePlugin):
+    def __init__(self, gui, name):
+        self.wallet = None
+        BasePlugin.__init__(self, gui, name)
 
     def fullname(self):
         return _('CryptoCorp Digital Oracle')
@@ -83,8 +86,9 @@ class Plugin(BasePlugin):
 
     def load_wallet(self, wallet):
         self.init()
+        if not self.wallet:
+            self.window.new_hdm_account = self.window.wallet_menu.addAction(_("&New HDM account"), self.new_account_dialog)
         self.wallet = wallet
-        self.window.new_hdm_account = self.window.wallet_menu.addAction(_("&New HDM account"), self.new_account_dialog)
 
     def settings_widget(self, window):
         return EnterButton(_('Settings'), self.settings_dialog)
