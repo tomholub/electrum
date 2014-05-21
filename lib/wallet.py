@@ -1899,7 +1899,8 @@ class Wallet(object):
             return WalletBitkey(config)
 
         if not storage.file_exists:
-            seed_version = NEW_SEED_VERSION if config.get('bip32') is True else OLD_SEED_VERSION
+            #seed_version = NEW_SEED_VERSION if config.get('bip32') is True else OLD_SEED_VERSION
+            seed_version = NEW_SEED_VERSION
         else:
             seed_version = storage.get('seed_version')
             if not seed_version:

@@ -340,6 +340,7 @@ class ElectrumWindow(QMainWindow):
         file_menu.addAction(_("&Quit"), self.close)
 
         wallet_menu = menubar.addMenu(_("&Wallet"))
+        self.wallet_menu = wallet_menu
         wallet_menu.addAction(_("&New contact"), self.new_contact_dialog)
         self.new_account = wallet_menu.addAction(_("&New account"), self.new_account_dialog)
 

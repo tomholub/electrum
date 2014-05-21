@@ -84,8 +84,7 @@ class Plugin(BasePlugin):
     def load_wallet(self, wallet):
         self.init()
         self.wallet = wallet
-        self.window.new_account.triggered.disconnect(self.window.new_account_dialog)
-        self.window.new_account.triggered.connect(self.new_account_dialog)
+        self.window.new_hdm_account = self.window.wallet_menu.addAction(_("&New HDM account"), self.new_account_dialog)
 
     def settings_widget(self, window):
         return EnterButton(_('Settings'), self.settings_dialog)
