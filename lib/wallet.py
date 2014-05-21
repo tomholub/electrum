@@ -29,6 +29,7 @@ import random
 import aes
 import Queue
 import time
+import math
 
 from util import print_msg, print_error, format_satoshis
 from bitcoin import *
@@ -72,6 +73,7 @@ class WalletStorage:
 
     def __init__(self, config):
         self.lock = threading.Lock()
+        self.config = config
         self.data = {}
         self.file_exists = False
         self.path = self.init_path(config)
@@ -153,7 +155,7 @@ class WalletStorage:
 
     
 
-class Wallet:
+class NewWallet:
 
     def __init__(self, storage):
 
@@ -162,7 +164,7 @@ class Wallet:
         self.gap_limit_for_change = 3 # constant
 
         # saved fields
-        self.seed_version          = storage.get('seed_version', SEED_VERSION)
+        self.seed_version          = storage.get('seed_version', NEW_SEED_VERSION)
 
         self.gap_limit             = storage.get('gap_limit', 5)
         self.use_change            = storage.get('use_change',True)
@@ -299,14 +301,13 @@ class Wallet:
         if self.seed: 
             raise Exception("a seed exists")
 
+        self.seed_version = NEW_SEED_VERSION
+
         if not seed:
             self.seed = self.make_seed()
-            self.seed_version = SEED_VERSION
             return
 
-        self.seed_version = SEED_VERSION
         self.seed = unicodedata.normalize('NFC', unicode(seed.strip()))
-        return
 
             
 
@@ -600,6 +601,14 @@ class Wallet:
         raise Exception("Address not found", address)
 
 
+    def getpubkeys(self, addr):
+        assert is_valid(addr) and self.is_mine(addr)
+        account, sequence = self.get_address_index(addr)
+        if account != -1:
+            a = self.accounts[account]
+            return a.get_pubkeys( sequence )
+
+
     def get_roots(self, account):
         roots = []
         for a in account.split('&'):
@@ -646,8 +655,8 @@ class Wallet:
             if isinstance(root, Account):
                 dd += root.keyID_elements(s)
                 continue
-            c, K, _ = self.master_public_keys[root]
-            dd.append( 'bip32(%s,%s,%s)'%(c,K, s) )
+            c, K, cK = self.master_public_keys[root]
+            dd.append( 'bip32(%s,%s,%s)'%(c,cK, s) )
         return '&'.join(dd)
 
 
@@ -764,7 +773,13 @@ class Wallet:
 
         # add redeem script for coins that are in the wallet
         # FIXME: add redeemPubkey too!
-        unspent_coins = self.get_unspent_coins()
+
+        try:
+            unspent_coins = self.get_unspent_coins()
+        except:
+            # an exception may be raised is the wallet is not synchronized
+            unspent_coins = []
+
         for txin in tx.inputs:
             for item in unspent_coins:
                 if txin['prevout_hash'] == item['prevout_hash'] and txin['prevout_n'] == item['prevout_n']:
@@ -790,7 +805,7 @@ class Wallet:
 
         # add private keys from wallet
         self.add_keypairs_from_wallet(tx, keypairs, password)
-        self.sign_transaction(tx, keypairs)
+        self.sign_transaction(tx, keypairs, password)
 
 
     def sign_message(self, address, message, password):
@@ -800,6 +815,16 @@ class Wallet:
         key = regenerate_key(sec)
         compressed = is_compressed(sec)
         return key.sign_message(message, compressed, address)
+
+
+
+    def decrypt_message(self, pubkey, message, password):
+        address = public_key_to_bc_address(pubkey.decode('hex'))
+        keys = self.get_private_key(address, password)
+        secret = keys[0]
+        ec = regenerate_key(secret)
+        decrypted = ec.decrypt_message(message)
+        return decrypted[0]
 
 
     def change_gap_limit(self, value):
@@ -857,7 +882,7 @@ class Wallet:
             if tx_height == 0:
                 tx_age = 0
             else: 
-                tx_age = self.verifier.blockchain.height() - tx_height + 1
+                tx_age = self.network.get_local_height() - tx_height + 1
             if tx_age > age:
                 age = tx_age
         return age > 2
@@ -1100,7 +1125,7 @@ class Wallet:
         return [x[1] for x in coins]
 
 
-    def choose_tx_inputs( self, amount, fixed_fee, domain = None ):
+    def choose_tx_inputs( self, amount, fixed_fee, num_outputs, domain = None ):
         """ todo: minimize tx size """
         total = 0
         fee = self.fee if fixed_fee is None else fixed_fee
@@ -1114,13 +1139,13 @@ class Wallet:
         inputs = []
 
         for item in coins:
-            if item.get('coinbase') and item.get('height') + COINBASE_MATURITY > self.network.blockchain.height:
+            if item.get('coinbase') and item.get('height') + COINBASE_MATURITY > self.network.get_local_height():
                 continue
             addr = item.get('address')
             v = item.get('value')
             total += v
             inputs.append(item)
-            fee = self.estimated_fee(inputs) if fixed_fee is None else fixed_fee
+            fee = self.estimated_fee(inputs, num_outputs) if fixed_fee is None else fixed_fee
             if total >= amount + fee: break
         else:
             inputs = []
@@ -1133,10 +1158,9 @@ class Wallet:
             self.fee = fee
             self.storage.put('fee_per_kb', self.fee, True)
         
-    def estimated_fee(self, inputs):
-        estimated_size =  len(inputs) * 180 + 80     # this assumes non-compressed keys
-        fee = self.fee * int(round(estimated_size/1024.))
-        if fee == 0: fee = self.fee
+    def estimated_fee(self, inputs, num_outputs):
+        estimated_size =  len(inputs) * 180 + num_outputs * 34    # this assumes non-compressed keys
+        fee = self.fee * int(math.ceil(estimated_size/1000.))
         return fee
 
 
@@ -1265,7 +1289,7 @@ class Wallet:
                         try:
                             default_label = self.labels[o_addr]
                         except KeyError:
-                            default_label = o_addr
+                            default_label = '>' + o_addr
                         break
                 else:
                     default_label = '(internal)'
@@ -1287,16 +1311,16 @@ class Wallet:
                     try:
                         default_label = self.labels[o_addr]
                     except KeyError:
-                        default_label = o_addr
+                        default_label = '<' + o_addr
 
         return default_label
 
 
     def make_unsigned_transaction(self, outputs, fee=None, change_addr=None, domain=None ):
         for address, x in outputs:
-            assert is_valid(address)
+            assert is_valid(address), "Address " + address + " is invalid!"
         amount = sum( map(lambda x:x[1], outputs) )
-        inputs, total, fee = self.choose_tx_inputs( amount, fee, domain )
+        inputs, total, fee = self.choose_tx_inputs( amount, fee, len(outputs), domain )
         if not inputs:
             raise ValueError("Not enough funds")
         self.add_input_info(inputs)
@@ -1309,7 +1333,7 @@ class Wallet:
         keypairs = {}
         self.add_keypairs_from_wallet(tx, keypairs, password)
         if keypairs:
-            self.sign_transaction(tx, keypairs)
+            self.sign_transaction(tx, keypairs, password)
 
         chain_paths = [None for i in xrange(len(tx.inputs))]
         signing_account = None
@@ -1341,9 +1365,9 @@ class Wallet:
                 txin['redeemPubkey'] = self.accounts[account].get_pubkey(*sequence)
 
 
-    def sign_transaction(self, tx, keypairs):
+    def sign_transaction(self, tx, keypairs, password):
         tx.sign(keypairs)
-        run_hook('sign_transaction', tx)
+        run_hook('sign_transaction', tx, password)
 
 
     def sendtx(self, tx):
@@ -1765,7 +1789,7 @@ class WalletSynchronizer(threading.Thread):
 
 
 
-class OldWallet(Wallet):
+class OldWallet(NewWallet):
 
     def init_seed(self, seed):
         import mnemonic
@@ -1774,13 +1798,15 @@ class OldWallet(Wallet):
             raise Exception("a seed exists")
 
         if not seed:
-            raise
+            seed = random_seed(128)
 
-        self.seed_version = 4
+        self.seed_version = OLD_SEED_VERSION
 
         # see if seed was entered as hex
+        seed = seed.strip()
         try:
-            seed.strip().decode('hex')
+            assert seed
+            seed.decode('hex')
             self.seed = str(seed)
             return
         except Exception:
@@ -1793,7 +1819,11 @@ class OldWallet(Wallet):
             raise
 
         self.seed = mnemonic.mn_decode(words)
+
+        if not self.seed:
+            raise Exception("Invalid seed")
             
+
 
     def get_master_public_key(self):
         return self.storage.get("master_public_key")
@@ -1809,7 +1839,7 @@ class OldWallet(Wallet):
         self.save_accounts()
 
     def create_watching_only_wallet(self, K0):
-        self.seed_version = 4
+        self.seed_version = OLD_SEED_VERSION
         self.storage.put('seed_version', self.seed_version, True)
         self.create_account(K0)
 
@@ -1854,3 +1884,85 @@ def debug_trace():
   from pdb import set_trace
   pyqtRemoveInputHook()
   set_trace()
+
+
+
+# former WalletFactory
+class Wallet(object):
+
+    def __new__(self, storage):
+        config = storage.config
+        if config.get('bitkey', False):
+            # if user requested support for Bitkey device,
+            # import Bitkey driver
+            from wallet_bitkey import WalletBitkey
+            return WalletBitkey(config)
+
+        if not storage.file_exists:
+            seed_version = NEW_SEED_VERSION if config.get('bip32') is True else OLD_SEED_VERSION
+        else:
+            seed_version = storage.get('seed_version')
+            if not seed_version:
+                seed_version = OLD_SEED_VERSION if len(storage.get('master_public_key')) == 128 else NEW_SEED_VERSION
+
+        if seed_version == OLD_SEED_VERSION:
+            return OldWallet(storage)
+        elif seed_version == NEW_SEED_VERSION:
+            return NewWallet(storage)
+        else:
+            msg = "This wallet seed is not supported."
+            if seed_version in [5]:
+                msg += "\nTo open this wallet, try 'git checkout seed_v%d'"%seed_version
+            print msg
+            sys.exit(1)
+
+
+
+    @classmethod
+    def from_seed(self, seed, storage):
+        import mnemonic
+        if not seed:
+            return 
+
+        words = seed.strip().split()
+        try:
+            mnemonic.mn_decode(words)
+            uses_electrum_words = True
+        except Exception:
+            uses_electrum_words = False
+
+        try:
+            seed.decode('hex')
+            is_hex = True
+        except Exception:
+            is_hex = False
+         
+        if is_hex or (uses_electrum_words and len(words) != 13):
+            #print "old style wallet", len(words), words
+            w = OldWallet(storage)
+            w.init_seed(seed) #hex
+        else:
+            #assert is_seed(seed)
+            w = NewWallet(storage)
+            w.init_seed(seed)
+
+        return w
+
+
+    @classmethod
+    def from_mpk(self, s, storage):
+        try:
+            mpk, chain = s.split(':')
+        except:
+            mpk = s
+            chain = False
+
+        if chain:
+            w = NewWallet(storage)
+            w.create_watching_only_wallet(mpk, chain)
+        else:
+            w = OldWallet(storage)
+            w.seed = ''
+            w.create_watching_only_wallet(mpk)
+
+        return w

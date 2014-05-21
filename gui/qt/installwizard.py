@@ -3,7 +3,7 @@ from PyQt4.QtCore import *
 import PyQt4.QtCore as QtCore
 
 from electrum.i18n import _
-from electrum import Wallet, mnemonic
+from electrum import Wallet
 
 from seed_dialog import SeedDialog
 from network_dialog import NetworkDialog
@@ -127,7 +127,8 @@ class InstallWizard(QDialog):
         if not self.exec_():
             return
 
-        seed = unicode(seed_e.toPlainText())
+        seed = seed_e.toPlainText()
+        seed = unicode(seed.toLower())
 
         if not seed:
             QMessageBox.warning(None, _('Error'), _('No seed'), _('OK'))
@@ -166,12 +167,6 @@ class InstallWizard(QDialog):
         mpk_e.setMaximumHeight(100)
         grid.addWidget(mpk_e, 0, 1)
 
-        label = QLabel(_("Chain")) 
-        #grid.addWidget(label, 1, 0)
-        chain_e = QTextEdit()
-        chain_e.setMaximumHeight(100)
-        #grid.addWidget(chain_e, 1, 1)
-
         vbox.addLayout(grid)
 
         vbox.addStretch(1)
@@ -182,8 +177,7 @@ class InstallWizard(QDialog):
             return None
 
         mpk = str(mpk_e.toPlainText()).strip()
-        chain = str(chain_e.toPlainText()).strip()
-        return mpk, chain
+        return mpk
 
 
     def network_dialog(self):
@@ -288,8 +282,7 @@ class InstallWizard(QDialog):
             mpk = self.mpk_dialog()
             if not mpk:
                 return
-            wallet.seed = ''
-            wallet.create_watching_only_wallet(mpk)
+            wallet = Wallet.from_mpk(mpk, self.storage)
 
         else: raise
                 

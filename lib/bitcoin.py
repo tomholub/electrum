@@ -303,6 +303,10 @@ def verify_message(address, signature, message):
         return False
 
 
+def encrypt_message(message, pubkey):
+    return EC_KEY.encrypt_message(message, pubkey.decode('hex'))
+
+
 def chunks(l, n):
     return [l[i:i+n] for i in xrange(0, len(l), n)]
 
@@ -366,6 +370,9 @@ class EC_KEY(object):
         self.pubkey = ecdsa.ecdsa.Public_key( generator_secp256k1, generator_secp256k1 * secret )
         self.privkey = ecdsa.ecdsa.Private_key( self.pubkey, secret )
         self.secret = secret
+
+    def get_public_key(self, compressed=True):
+        return point_to_ser(self.pubkey.point, compressed).encode('hex')
 
     def sign_message(self, message, compressed, address):
         private_key = ecdsa.SigningKey.from_secret_exponent( self.secret, curve = SECP256k1 )

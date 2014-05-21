@@ -21,6 +21,7 @@ import json
 import optparse
 import os
 import re
+import ast
 import sys
 import time
 import traceback
@@ -89,6 +90,8 @@ def arg_parser():
     parser.add_option("-G", "--gap", dest="gap_limit", default=None, help="gap limit")
     parser.add_option("-W", "--password", dest="password", default=None, help="set password for usage with commands (currently only implemented for create command, do not use it for longrunning gui session since the password is visible in /proc)")
     parser.add_option("-1", "--oneserver", action="store_true", dest="oneserver", default=False, help="connect to one server only")
+    #parser.add_option("--bip32", action="store_true", dest="bip32", default=False, help="bip32 (not final)")
+    parser.add_option("--mpk", dest="mpk", default=False, help="restore from master public key")
     return parser
 
 
@@ -96,7 +99,7 @@ def print_help(parser):
     parser.print_help()
     print_msg("Type 'electrum help <command>' to see the help for a specific command")
     print_msg("Type 'electrum --help' to see the list of options")
-    run_command('help')
+    run_command(known_commands['help'])
     sys.exit(1)
 
 
@@ -105,24 +108,26 @@ def print_help_cb(self, opt, value, parser):
 
 
 def run_command(cmd, password=None, args=[]):
-    import xmlrpclib, socket
+    import socket
+    if cmd.requires_network and not options.offline:
+        network = NetworkProxy(config)
+        if not network.start(start_daemon= (True if cmd.name!='daemon' else False)):
+            print "Daemon not running"
+            sys.exit(1)
+
+
+
+        if wallet:
+            wallet.start_threads(network)
+            wallet.update()
+    else:
+        network = None
+
     cmd_runner = Commands(wallet, network)
     func = getattr(cmd_runner, cmd.name)
     cmd_runner.password = password
-
-    if cmd.requires_network and not options.offline:
-        cmd_runner.network = xmlrpclib.ServerProxy('http://localhost:8000')
-        if wallet:
-            wallet.start_threads(cmd_runner.network)
-            wallet.update()
-    else:
-        cmd_runner.network = None
-
     try:
         result = func(*args[1:])
-    except socket.error:
-        print "Daemon not running"
-        sys.exit(1)
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
@@ -137,6 +142,10 @@ def run_command(cmd, password=None, args=[]):
         util.print_msg(result)
     elif result is not None:
         util.print_json(result)
+
+
+
+
 
 
 if __name__ == '__main__':
@@ -216,6 +225,8 @@ if __name__ == '__main__':
             sys.exit("Error: Remove the existing wallet first!")
         if options.password is not None:
             password = options.password
+        elif cmd.name == 'restore' and options.mpk:
+            password = None
         else:
             password = prompt_password("Password (hit return if you do not wish to encrypt your wallet):")
 
@@ -233,12 +244,16 @@ if __name__ == '__main__':
         #    wallet.change_gap_limit(int(gap))
 
         if cmd.name == 'restore':
-            import getpass
-            seed = getpass.getpass(prompt="seed:", stream=None) if options.concealed else raw_input("seed:")
-            wallet = Wallet.from_seed(str(seed),storage)
-            if not wallet:
-                sys.exit("Error: Invalid seed")
-            wallet.save_seed(password)
+            if options.mpk:
+                wallet = Wallet.from_mpk(options.mpk, storage)
+            else:
+                import getpass
+                seed = getpass.getpass(prompt="seed:", stream=None) if options.concealed else raw_input("seed:")
+                wallet = Wallet.from_seed(str(seed),storage)
+                if not wallet:
+                    sys.exit("Error: Invalid seed")
+                wallet.save_seed(password)
+
             if not options.offline:
                 network = Network(config)
                 network.start()
@@ -361,36 +376,6 @@ if __name__ == '__main__':
             args = args[0:cmd.min_args] + [message]
 
 
-    if cmd.name == 'daemon' and args[1] == 'start':
-        pid = os.fork()
-        if (pid == 0): # The first child.
-            os.chdir("/")
-            os.setsid()
-            os.umask(0)
-            pid2 = os.fork()
-            if (pid2 == 0):  # Second child
-                from SimpleXMLRPCServer import SimpleXMLRPCServer
-                # start the daemon
-                network = Network(config)
-                if not network.start(wait=True):
-                    print_msg("Not connected, aborting.")
-                    sys.exit(1)
-                print_msg("Connected to " + network.interface.connection_msg)
-                server = SimpleXMLRPCServer(('localhost',8000), allow_none=True, logRequests=False)
-                server.register_function(network.synchronous_get, 'synchronous_get')
-                server.register_function(network.get_servers, 'get_servers')
-                server.register_function(network.main_server, 'main_server')
-                server.register_function(network.send, 'send')
-                server.register_function(network.subscribe, 'subscribe')
-                server.register_function(network.is_connected, 'is_connected')
-                server.register_function(network.is_up_to_date, 'is_up_to_date')
-                server.register_function(lambda: setattr(server,'running', False), 'stop')
-                server.running = True
-                while server.running:
-                    server.handle_request()
-                print_msg("Daemon stopped")
-
-        sys.exit(0)
 
     # run the command
     if cmd.name == 'deseed':
@@ -419,6 +404,10 @@ if __name__ == '__main__':
 
     elif cmd.name == 'setconfig':
         key, value = args[1:3]
+        try:
+            value = ast.literal_eval(value)
+        except:
+            pass
         config.set_key(key, value, True)
         print_msg(True)
 

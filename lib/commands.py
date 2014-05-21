@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import time
 from util import *
 from bitcoin import *
 from decimal import Decimal
@@ -79,8 +80,8 @@ register_command('help',                 0, 1, False, False, False, 'Prints this
 register_command('history',              0, 0, True,  True,  False, 'Returns the transaction history of your wallet')
 register_command('importprivkey',        1, 1, False, True,  True,  'Import a private key', 'importprivkey <privatekey>')
 register_command('listaddresses',        2, 2, False, True,  False, 'Returns your list of addresses.', '', listaddr_options)
-register_command('listunspent',          0, 0, True,  False, False, 'Returns the list of unspent inputs in your wallet.')
-register_command('getaddressunspent',    1, 1, True,  False, False, 'Returns the list of unspent inputs in your wallet.')
+register_command('listunspent',          0, 0, True,  True,  False, 'Returns the list of unspent inputs in your wallet.')
+register_command('getaddressunspent',    1, 1, True,  False, False, 'Returns the list of unspent inputs for an address.')
 register_command('mktx',                 5, 5, False, True,  True,  'Create a signed transaction', 'mktx <recipient> <amount> [label]', payto_options)
 register_command('mksendmanytx',         4, 4, False, True,  True,  'Create a signed transaction', mksendmany_syntax, payto_options)
 register_command('payto',                5, 5, True,  True,  True,  'Create and broadcast a transaction.', payto_syntax, payto_options)
@@ -96,11 +97,11 @@ register_command('unfreeze',             1, 1, False, True,  False, 'Unfreeze th
 register_command('validateaddress',      1, 1, False, False, False, 'Check that the address is valid', 'validateaddress <address>')
 register_command('verifymessage',        3,-1, False, False, False, 'Verifies a signature', verifymessage_syntax)
 
-register_command('encrypt',              2,-1, False, False, False, 'encrypt a message with pubkey','encrypt <pubkey> <message>')
-register_command('decrypt',              2,-1, False, False, False, 'decrypt a message with privkey','decrypt <privkey> <message>')
-register_command('daemon',               1, 1, True, False, False, 'start/stop daemon')
+#register_command('encrypt',              2,-1, False, False, False, 'encrypt a message with pubkey','encrypt <pubkey> <message>')
+#register_command('decrypt',              2,-1, False, True, True,   'decrypt a message encrypted with pubkey','decrypt <pubkey> <message>')
+register_command('daemon',               1, 1, True, False, False,  '<stop|status>')
 register_command('getproof',             1, 1, True, False, False, 'get merkle proof', 'getproof <address>')
-register_command('getunspentaddress',    2, 2, True, False, False, 'get the address of an unspent','getunspentaddress <txid> <pos>')
+register_command('getutxoaddress',       2, 2, True, False, False, 'get the address of an unspent transaction output','getutxoaddress <txid> <pos>')
 
 
 
@@ -153,18 +154,18 @@ class Commands:
         return self.network.synchronous_get([ ('blockchain.address.listunspent',[addr]) ])[0]
 
 
-    def getunspentaddress(self, txid, num):
-        return self.network.synchronous_get([ ('blockchain.utxo.get_address',[txid, num]) ])[0]
+    def getutxoaddress(self, txid, num):
+        r = self.network.synchronous_get([ ('blockchain.utxo.get_address',[txid, num]) ])
+        if r: 
+            return {'address':r[0] }
 
 
     def createrawtransaction(self, inputs, outputs):
-        # convert to own format
-        for i in inputs:
-            i['tx_hash'] = i['txid']
-            i['index'] = i['vout']
+        inputs = map(lambda i: {'prevout_hash': i['txid'], 'prevout_n':i['vout']}, inputs )
         outputs = map(lambda x: (x[0],int(1e8*x[1])), outputs.items())
         tx = Transaction.from_io(inputs, outputs)
         return tx
+
 
     def signrawtransaction(self, raw_tx, input_info, private_keys):
         tx = Transaction(raw_tx)
@@ -207,14 +208,10 @@ class Commands:
         return out
 
     def getpubkeys(self, addr):
-        assert is_valid(addr) and self.wallet.is_mine(addr)
         out = { 'address':addr }
-        account, sequence = self.wallet.get_address_index(addr)
-        if account != -1:
-            a = self.wallet.accounts[account]
-            out['pubkeys'] = a.get_pubkeys( sequence )
-
+        out['pubkeys'] = self.wallet.getpubkeys(addr)
         return out
+
 
     def getbalance(self, account= None):
         if account is None:
@@ -227,8 +224,11 @@ class Commands:
         return out
 
     def getaddressbalance(self, addr):
-        b = self.network.synchronous_get([ ('blockchain.address.get_balance',[addr]) ])[0]
-        return str(Decimal(b)/100000000)
+        out = self.network.synchronous_get([ ('blockchain.address.get_balance',[addr]) ])[0]
+        out["confirmed"] =  str(Decimal(out["confirmed"])/100000000)
+        out["unconfirmed"] =  str(Decimal(out["unconfirmed"])/100000000)
+        return out
+
 
     def getproof(self, addr):
         p = self.network.synchronous_get([ ('blockchain.address.get_proof',[addr]) ])[0]
@@ -238,6 +238,8 @@ class Commands:
         return out
 
     def getservers(self):
+        while not self.network.is_up_to_date():
+            time.sleep(0.1)
         return self.network.get_servers()
 
     def getversion(self):
@@ -338,10 +340,8 @@ class Commands:
                 time_str = "----"
 
             label, is_default_label = self.wallet.get_label(tx_hash)
-            if not label: label = tx_hash
-            else: label = label + ' '*(64 - len(label) )
 
-            out.append( "%16s"%time_str + "  " + label + "  " + format_satoshis(value)+ "  "+ format_satoshis(balance) )
+            out.append({'txid':tx_hash, 'date':"%16s"%time_str, 'label':label, 'value':format_satoshis(value)})
         return out
 
 
@@ -397,13 +397,13 @@ class Commands:
         else:
             return "unknown transaction"
 
-    def encrypt(self, pubkey, message):
-        return EC_KEY.encrypt_message(message, pubkey.decode('hex'))
 
-    def decrypt(self, secret, message):
-        ec = regenerate_key(secret)
-        decrypted = ec.decrypt_message(message)
-        return decrypted[0]
+    def encrypt(self, pubkey, message):
+        return bitcoin.encrypt_message(message, pubkey)
+
+
+    def decrypt(self, pubkey, message):
+        return self.wallet.decrypt_message(pubkey, message, self.password)
 
 
 
