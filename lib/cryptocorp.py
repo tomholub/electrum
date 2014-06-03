@@ -109,9 +109,11 @@ class OracleDeferralException(DeferralException):
         self.params = params
         self.verifications = verifications or []
         self.otp = None
+        self.code = None
 
     def retry(self):
         self.account.otp = self.otp
+        self.account.code = self.code
         return self.account.sign(*self.params)
 
 class Oracle_Account(account.BIP32_Account_2of3):
@@ -120,6 +122,7 @@ class Oracle_Account(account.BIP32_Account_2of3):
         self.my_key = v['my_key']
         self.backup_key = v['backup_key']
         self.otp = None
+        self.code = None
 
         if not v.has_key('c2'):
             h = http.Http()
@@ -200,8 +203,12 @@ class Oracle_Account(account.BIP32_Account_2of3):
         if self.otp:
             req['verifications'] = {}
             req['verifications']['otp'] = self.otp
+        if self.code:
+            req['verifications'] = {}
+            req['verifications']['code'] = self.code
 
         self.otp = None
+        self.code = None
 
         print json.dumps(req)
 

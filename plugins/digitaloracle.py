@@ -60,6 +60,7 @@ class Plugin(BasePlugin):
         layout.addWidget(label,0,0,1,2)
 
         otp = None
+        code = None
 
         if 'otp' in de.verifications:
             layout.addWidget(QLabel("One time password: "),1,0)
@@ -67,6 +68,13 @@ class Plugin(BasePlugin):
             otp = QLineEdit()
 
             layout.addWidget(otp, 1,1)
+
+        if 'code' in de.verifications:
+            layout.addWidget(QLabel("Code sent to you by SMS: "),1,0)
+
+            code = QLineEdit()
+
+            layout.addWidget(code, 1,1)
 
         resubmit = QPushButton(_("Resubmit"))
         resubmit.clicked.connect(d.accept)
@@ -80,6 +88,8 @@ class Plugin(BasePlugin):
         if d.exec_():
             if otp:
                 de.otp = str(otp.text())
+            if code:
+                de.code = str(code.text())
             return True
         else:
             return False
