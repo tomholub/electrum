@@ -213,6 +213,7 @@ class Oracle_Account(account.BIP32_Account_2of3):
         print json.dumps(req)
 
         h = http.Http()
+        print "request to %s"%(self.oracle)
         res, content = h.request(self.oracle + "/transactions", 'POST', json.dumps(req), headers)
 
         print content

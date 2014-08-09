@@ -288,9 +288,10 @@ class Plugin(BasePlugin):
                 }
 
         if backup_text:
-            account_id, i, c0, K0, cK0, my_key = self.wallet.next_oracle_account()
+            i = self.wallet.next_oracle_account()
+            my_key = self.wallet.oracle_account(i)[0]
             oracle_url = cryptocorp.make_keychain(self.base_url(), my_key, backup_text, parameters, pii)
-            self.wallet.create_oracle_account(oracle_url, my_key, backup_text, name)
+            self.wallet.create_oracle_account(oracle_url, backup_text, i, name)
         else:
             self.wallet.create_pending_account('1', name)
 

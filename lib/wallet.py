@@ -1584,11 +1584,6 @@ class NewWallet:
 
 
     def next_oracle_account(self):
-        import cryptocorp
-        master_c0, master_K0, master_cK0 = self.master_public_keys["m/0'/"]
-        print "m="
-        print cryptocorp.SerializeExtendedPublicKey(1, "00000000".decode('hex'), 0, master_c0.decode('hex'), master_cK0.decode('hex'))
-
         keys = self.accounts.keys()
         account_id = None
         i = 0
@@ -1596,16 +1591,25 @@ class NewWallet:
             account_id = "oracle & backup & m/0'/%d"%(i)
             if account_id not in keys: break
             i += 1
+        return i
+
+    def oracle_account(self, i):
+        import cryptocorp
+
+        account_id = "oracle & backup & m/0'/%d"%(i)
+        master_c0, master_K0, master_cK0 = self.master_public_keys["m/0'/"]
+        print "m="
+        print cryptocorp.SerializeExtendedPublicKey(1, "00000000".decode('hex'), 0, master_c0.decode('hex'), master_cK0.decode('hex'))
 
         c0, K0, cK0 = bip32_public_derivation(master_c0.decode('hex'), master_K0.decode('hex'), "m/0'/", "m/0'/%d"%i)
 
         #FIXME parent ID
         my_key = cryptocorp.SerializeExtendedPublicKey(2, "00000000".decode('hex'), i, c0.decode('hex'), cK0.decode('hex'))
-        return (account_id, i, c0, K0, cK0, my_key)
+        return (my_key, account_id, c0, K0, cK0)
 
-    def create_oracle_account(self, oracle, my_key, backup_key, name = None):
+    def create_oracle_account(self, oracle, backup_key, i, name = None):
         import cryptocorp
-        account_id, i, c0, K0, cK0, mykey = self.next_oracle_account()
+        my_key, account_id, c0, K0, cK0 = self.oracle_account(i)
 
         account = cryptocorp.Oracle_Account({ 'c':c0, 'K':K0, 'cK':cK0, 'oracle': oracle, 'backup_key': backup_key, 'my_key': my_key})
         self.accounts[account_id] = account
@@ -1614,7 +1618,6 @@ class NewWallet:
             self.set_label(account_id, name)
         else:
             self.set_label(account_id, "Oracle %d"%(i))
-
 
 class WalletSynchronizer(threading.Thread):
 
