@@ -147,6 +147,15 @@ class Oracle_Account(account.BIP32_Account_2of3):
     def keyID_elements(self, s):
         return [ 'oracle', 'bip32(%s,%s,%s)'%(self.c2.encode('hex'),self.K2.encode('hex'),s) ]
 
+    def redeem_script(self, sequence):
+        chain, i = sequence
+        pubkey1 = self.get_pubkey(chain, i)
+        pubkey2 = self.get_pubkey2(chain, i)
+        pubkey3 = self.get_pubkey3(chain, i)
+        keys = [pubkey1, pubkey2, pubkey3]
+        keys.sort()
+        return Transaction.multisig_script(keys, 2)
+
     def dump(self):
         d = account.BIP32_Account_2of3.dump(self)
         d['oracle'] = self.oracle
