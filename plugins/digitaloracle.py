@@ -231,7 +231,7 @@ class Plugin(BasePlugin):
         qrw = QRCodeWidget()
         vbox1.addWidget(qrw)
 
-        otp_secret = b32encode(("%x"%(SystemRandom().getrandbits(120))).decode('hex'))
+        otp_secret = b32encode(("%030x"%(SystemRandom().getrandbits(120))).decode('hex'))
         print otp_secret
 
         def check_name():
