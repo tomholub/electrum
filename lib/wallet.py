@@ -161,12 +161,12 @@ class NewWallet:
 
         self.storage = storage
         self.electrum_version = ELECTRUM_VERSION
-        self.gap_limit_for_change = 3 # constant
+        self.gap_limit_for_change = 30 # constant
 
         # saved fields
         self.seed_version          = storage.get('seed_version', NEW_SEED_VERSION)
 
-        self.gap_limit             = storage.get('gap_limit', 5)
+        self.gap_limit             = storage.get('gap_limit', 50)
         self.use_change            = storage.get('use_change',True)
         self.use_encryption        = storage.get('use_encryption', False)
         self.seed                  = storage.get('seed', '')               # encrypted
