@@ -439,9 +439,10 @@ class NewWallet:
         return k, addr
 
 
-    def next_account(self, account_type = '1of1'):
+    def next_account(self, account_type = '1of1', i = None):
 
-        i = self.num_accounts(account_type)
+        if i is None:
+            i = self.num_accounts(account_type)
         account_id = self.account_id(account_type,i)
 
         if account_type is '1of1':
@@ -488,8 +489,8 @@ class NewWallet:
 
 
 
-    def create_account(self, account_type = '1of1', name = None):
-        k, account = self.next_account(account_type)
+    def create_account(self, account_type='1of1', name=None, i=None):
+        k, account = self.next_account(account_type, i)
         if k in self.pending_accounts:
             self.pending_accounts.pop(k)
             self.storage.put('pending_accounts', self.pending_accounts)

@@ -1462,6 +1462,10 @@ class ElectrumWindow(QMainWindow):
         l.setWordWrap(True)
         vbox.addWidget(l)
 
+        vbox.addWidget(QLabel(_('Optional account index')+':'))
+        iWidget = QLineEdit()
+        vbox.addWidget(iWidget)
+
         vbox.addLayout(ok_cancel_buttons(dialog))
         dialog.setLayout(vbox)
         r = dialog.exec_()
@@ -1470,9 +1474,13 @@ class ElectrumWindow(QMainWindow):
         name = str(e.text())
         if not name: return
 
-        self.wallet.create_pending_account('1of1', name)
-        self.update_receive_tab()
+        try:
+            self.wallet.create_account('1of1', name, int(iWidget.text()))  # account index filled out
+        except ValueError:
+            self.wallet.create_pending_account('1of1', name)
+
         self.tabs.setCurrentIndex(2)
+        self.update_receive_tab()
 
 
 
