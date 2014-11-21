@@ -1470,7 +1470,7 @@ class ElectrumWindow(QMainWindow):
         name = str(e.text())
         if not name: return
 
-        self.wallet.create_pending_account('1', name)
+        self.wallet.create_pending_account('1of1', name)
         self.update_receive_tab()
         self.tabs.setCurrentIndex(2)
 
